@@ -1,236 +1,144 @@
-using Jellyfin.Plugin.TorrServerStrm.Services;
-using MediaBrowser.Controller.Library;
+using Jellyfin.Plugin.TorrServerStrm.Api.Models;
+using Jellyfin.Plugin.TorrServerStrm.Domain;
+using Jellyfin.Plugin.TorrServerStrm.Infrastructure;
+using Jellyfin.Plugin.TorrServerStrm.Services.Import;
+using Jellyfin.Plugin.TorrServerStrm.Services.Index;
+using Jellyfin.Plugin.TorrServerStrm.Services.Library;
+using Jellyfin.Plugin.TorrServerStrm.Services.Title;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.TorrServerStrm.Api;
-
-public class AddRequest
-{
-    public string Magnet { get; set; } = string.Empty;
-    public string Type { get; set; } = "movie";
-    public string? Title { get; set; }
-    public int? Year { get; set; }
-    public bool YearAuto { get; set; }
-    public string? LibraryPath { get; set; }
-}
-
-public class ParseMagnetRequest
-{
-    public string Magnet { get; set; } = string.Empty;
-}
 
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
 [Route("TorrServerStrm")]
-public class TorrServerStrmController : ControllerBase
+public sealed class TorrServerStrmController : ControllerBase
 {
-    private readonly IHttpClientFactory _httpFactory;
-    private readonly ILibraryManager _libraryManager;
     private readonly LibraryCatalog _libraryCatalog;
-    private readonly StrmIndex _index;
+    private readonly IStrmIndex _index;
+    private readonly ITitleParser _titleParser;
+    private readonly IMediaImportService _importService;
     private readonly ILogger<TorrServerStrmController> _logger;
 
     public TorrServerStrmController(
-        IHttpClientFactory httpFactory,
-        ILibraryManager libraryManager,
         LibraryCatalog libraryCatalog,
-        StrmIndex index,
+        IStrmIndex index,
+        ITitleParser titleParser,
+        IMediaImportService importService,
         ILogger<TorrServerStrmController> logger)
     {
-        _httpFactory = httpFactory;
-        _libraryManager = libraryManager;
         _libraryCatalog = libraryCatalog;
         _index = index;
+        _titleParser = titleParser;
+        _importService = importService;
         _logger = logger;
     }
 
     [HttpGet("Libraries")]
-    public ActionResult GetLibraries()
+    public ActionResult<IReadOnlyList<LibraryResponse>> GetLibraries()
     {
-        return Ok(_libraryCatalog.GetLocations().Select(l => new
-        {
-            name = l.Name,
-            type = l.Type,
-            typeLabel = l.TypeLabel,
-            path = l.Path
-        }));
+        var libraries = _libraryCatalog.GetLocations()
+            .Select(library => new LibraryResponse(
+                library.Name,
+                library.Type,
+                library.TypeLabel,
+                library.Path,
+                library.IsMovieCompatible,
+                library.IsSeriesCompatible))
+            .ToList();
+
+        return Ok(libraries);
     }
 
     [HttpGet("Tracked")]
-    public async Task<ActionResult> GetTracked(CancellationToken ct)
+    public async Task<ActionResult<TrackedResponse>> GetTracked(CancellationToken cancellationToken)
     {
-        var snapshot = await _index.GetSnapshotAsync(ct).ConfigureAwait(false);
-        var items = snapshot.Items.Select(i => new
-        {
-            type = i.Type,
-            title = i.Title,
-            year = i.Year,
-            rootPath = i.RootPath,
-            libraryRoot = i.LibraryRoot,
-            files = i.Files.Select(f => new
-            {
-                path = f.Path,
-                hash = f.Hash,
-                exists = System.IO.File.Exists(f.Path)
-            }).ToArray()
-        }).ToList();
+        await _index.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+        var snapshot = _index.GetSnapshot();
+        var items = snapshot.Items
+            .Select(item => new TrackedItemResponse(
+                item.Kind.ToApiValue(),
+                item.Title,
+                item.Year,
+                item.RootPath,
+                item.LibraryRoot,
+                item.Files
+                    .Select(file => new TrackedFileResponse(
+                        file.Path,
+                        file.Hash,
+                        System.IO.File.Exists(file.Path)))
+                    .ToList()))
+            .ToList();
 
-        return Ok(new
-        {
-            loadedAt = snapshot.LoadedAt,
-            totalItems = items.Count,
-            totalFiles = items.Sum(i => i.files.Length),
-            missingFiles = items.Sum(i => i.files.Count(f => !f.exists)),
-            items
-        });
+        return Ok(new TrackedResponse(
+            snapshot.LoadedAt,
+            items.Count,
+            items.Sum(item => item.Files.Count),
+            items.Sum(item => item.Files.Count(file => !file.Exists)),
+            items));
     }
 
     [HttpPost("ParseMagnet")]
-    public ActionResult ParseMagnet([FromBody] ParseMagnetRequest req)
+    public ActionResult<ParseMagnetResponse> ParseMagnet([FromBody] ParseMagnetRequest request)
     {
-        if (string.IsNullOrWhiteSpace(req.Magnet)
-            || !req.Magnet.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { error = "A magnet link is required." });
+        if (!MagnetLink.IsValid(request.Magnet))
+        {
+            return BadRequest(new ApiError("A magnet link is required."));
+        }
 
-        var parsed = TitleParser.ParseMagnet(req.Magnet);
-        return Ok(new { title = parsed.Title, year = parsed.Year, type = parsed.Type });
+        var parsed = _titleParser.ParseMagnet(request.Magnet);
+        return Ok(new ParseMagnetResponse(parsed.Title, parsed.Year, parsed.Kind.ToApiValue()));
     }
 
     [HttpPost("Add")]
-    public async Task<ActionResult> Add([FromBody] AddRequest req, CancellationToken ct)
+    public async Task<ActionResult<AddMediaResponse>> Add(
+        [FromBody] AddMediaRequest request,
+        CancellationToken cancellationToken)
     {
-        var cfg = Plugin.Instance!.Configuration;
-
-        if (string.IsNullOrWhiteSpace(req.Magnet)
-            || !req.Magnet.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { error = "A magnet link is required." });
-
-        var requestedType = string.IsNullOrWhiteSpace(req.Type) ? "movie" : req.Type;
-        if (requestedType != "movie" && requestedType != "series")
-            return BadRequest(new { error = "Type must be movie or series." });
-
-        TorrServerClient? client = null;
-        TorrentInfo? torrent = null;
-        WriteResult? written = null;
+        var kind = MediaKind.Movie;
+        if (!string.IsNullOrWhiteSpace(request.Type)
+            && !MediaKindExtensions.TryParseApiValue(request.Type, out kind))
+        {
+            return BadRequest(new ApiError("Type must be movie or series."));
+        }
 
         try
         {
-            client = new TorrServerClient(_httpFactory.CreateClient(), cfg);
-            torrent = await client.AddAsync(req.Magnet, req.Title, ct);
-
-            var resolvedType = requestedType;
-            var title = req.Title?.Trim() ?? string.Empty;
-            var manualYear = req.Year.HasValue && !req.YearAuto;
-            var year = req.Year;
-
-            if (string.IsNullOrWhiteSpace(title) || (!year.HasValue && resolvedType != "series"))
-            {
-                var detected = TitleParser.DetectFromTorrent(torrent, resolvedType);
-                if (string.IsNullOrWhiteSpace(title))
+            var result = await _importService.ImportAsync(
+                new ImportRequest
                 {
-                    title = detected.Title;
-                }
+                    Magnet = request.Magnet,
+                    Kind = kind,
+                    Title = request.Title,
+                    Year = request.Year,
+                    YearAuto = request.YearAuto,
+                    LibraryPath = request.LibraryPath
+                },
+                cancellationToken).ConfigureAwait(false);
 
-                if (!year.HasValue && resolvedType != "series")
-                {
-                    year = detected.Year;
-                }
-            }
-
-            if (resolvedType == "series" && req.YearAuto)
-            {
-                year = null;
-            }
-
-            if (resolvedType != "series" && !year.HasValue)
-            {
-                year = TitleParser.ExtractYear(title);
-            }
-
-            if (string.IsNullOrWhiteSpace(title))
-            {
-                throw new InvalidOperationException("Could not determine the title. Enter the title manually.");
-            }
-
-            var includeSeriesYear = resolvedType == "series" && manualYear;
-            var selectedLibrary = _libraryCatalog.Resolve(req.LibraryPath, resolvedType);
-            written = StrmWriter.Write(cfg, resolvedType, title, year, torrent, selectedLibrary.Path, includeSeriesYear);
-
-            var item = new StoredItem
-            {
-                Type = resolvedType,
-                Title = title,
-                Year = year,
-                RootPath = written.RootPath,
-                LibraryRoot = written.LibraryRoot,
-                Files = written.Files
-                    .Select(f => new StoredFile { Path = f.Path, Hash = torrent.Hash })
-                    .ToList()
-            };
-
-            var (stored, obsolete) = await _index.AddOrMergeAsync(item, ct);
-            foreach (var hash in obsolete)
-            {
-                try
-                {
-                    await client.RemoveAsync(hash, CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "TorrServerStrm: failed to remove obsolete torrent {Hash}", hash);
-                }
-            }
-
-            _logger.LogInformation("TorrServerStrm: created {Count} .strm file(s) for {Title}", written.Files.Count, title);
-
-            if (cfg.ScanAfterAdd)
-            {
-                try
-                {
-                    _libraryManager.QueueLibraryScan();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to start a library scan");
-                }
-            }
-
-            return Ok(new
-            {
-                id = stored.Id,
-                hash = torrent.Hash,
-                title,
-                year,
-                type = resolvedType,
-                library = selectedLibrary.Name,
-                libraryPath = selectedLibrary.Path,
-                files = written.Files.Select(f => f.Path).ToArray()
-            });
+            return Ok(new AddMediaResponse(
+                result.Id,
+                result.Hash,
+                result.Title,
+                result.Year,
+                result.Kind.ToApiValue(),
+                result.LibraryName,
+                result.LibraryPath,
+                result.Files));
+        }
+        catch (MediaImportValidationException ex)
+        {
+            return BadRequest(new ApiError(ex.Message));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            if (written is not null)
-            {
-                StrmWriter.Rollback(written);
-            }
-
-            if (torrent is not null && client is not null)
-            {
-                try
-                {
-                    await client.RemoveAsync(torrent.Hash, CancellationToken.None);
-                }
-                catch (Exception cleanupEx)
-                {
-                    _logger.LogWarning(cleanupEx, "TorrServerStrm: failed to roll back torrent {Hash}", torrent.Hash);
-                }
-            }
-
             _logger.LogError(ex, "TorrServerStrm: add failed");
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new ApiError("Failed to add the torrent."));
         }
     }
-
 }

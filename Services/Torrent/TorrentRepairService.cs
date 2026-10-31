@@ -1,50 +1,42 @@
-using Microsoft.Extensions.Logging;
+using Jellyfin.Plugin.TorrServerStrm.Domain;
+using Jellyfin.Plugin.TorrServerStrm.Services.Index;
 
-namespace Jellyfin.Plugin.TorrServerStrm.Services;
+namespace Jellyfin.Plugin.TorrServerStrm.Services.Torrent;
 
-public sealed class TorrentRepairService
+public sealed class TorrentRepairService : ITorrentRepairService
 {
     private const int MaxConcurrency = 6;
     private static readonly TimeSpan ListTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan AddTimeout = TimeSpan.FromSeconds(15);
 
-    private readonly IHttpClientFactory _httpFactory;
-    private readonly StrmIndex _index;
+    private readonly ITorrServerClient _client;
+    private readonly IStrmIndex _index;
     private readonly ILogger<TorrentRepairService> _logger;
 
     public TorrentRepairService(
-        IHttpClientFactory httpFactory,
-        StrmIndex index,
+        ITorrServerClient client,
+        IStrmIndex index,
         ILogger<TorrentRepairService> logger)
     {
-        _httpFactory = httpFactory;
+        _client = client;
         _index = index;
         _logger = logger;
     }
 
     public async Task EnsureMissingAsync(CancellationToken cancellationToken)
     {
-        var snapshot = await _index.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
-        var known = BuildKnownHashes(snapshot);
+        await _index.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+        var known = BuildKnownHashes(_index.GetSnapshot());
         if (known.Count == 0)
         {
             return;
         }
 
-        var cfg = Plugin.Instance?.Configuration;
-        if (cfg is null)
-        {
-            _logger.LogWarning("TorrServerStrm: plugin configuration is unavailable, torrent check skipped");
-            return;
-        }
-
-        var client = new TorrServerClient(_httpFactory.CreateClient(), cfg);
-
         HashSet<string> existing;
         try
         {
-            using var cts = CreateTimeout(cancellationToken, ListTimeout);
-            existing = await client.GetExistingHashesAsync(cts.Token).ConfigureAwait(false);
+            using var timeout = CreateTimeout(cancellationToken, ListTimeout);
+            existing = await _client.GetHashesAsync(timeout.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -59,7 +51,7 @@ public sealed class TorrentRepairService
             return;
         }
 
-        var missing = known.Where(kv => !existing.Contains(kv.Key)).ToList();
+        var missing = known.Where(pair => !existing.Contains(pair.Key)).ToList();
         if (missing.Count == 0)
         {
             _logger.LogInformation(
@@ -76,15 +68,15 @@ public sealed class TorrentRepairService
         var failed = 0;
         using var gate = new SemaphoreSlim(MaxConcurrency, MaxConcurrency);
 
-        var tasks = missing.Select(async kv =>
+        var tasks = missing.Select(async pair =>
         {
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                using var cts = CreateTimeout(cancellationToken, AddTimeout);
-                await client.AddByHashAsync(kv.Key, kv.Value, cts.Token).ConfigureAwait(false);
+                using var timeout = CreateTimeout(cancellationToken, AddTimeout);
+                await _client.AddByHashAsync(pair.Key, pair.Value, timeout.Token).ConfigureAwait(false);
                 Interlocked.Increment(ref added);
-                _logger.LogInformation("TorrServerStrm: torrent {Hash} added to TorrServer", kv.Key);
+                _logger.LogInformation("TorrServerStrm: torrent {Hash} added to TorrServer", pair.Key);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -93,7 +85,7 @@ public sealed class TorrentRepairService
             catch (Exception ex)
             {
                 Interlocked.Increment(ref failed);
-                _logger.LogWarning(ex, "TorrServerStrm: failed to add torrent {Hash}", kv.Key);
+                _logger.LogWarning(ex, "TorrServerStrm: failed to add torrent {Hash}", pair.Key);
             }
             finally
             {
@@ -109,19 +101,14 @@ public sealed class TorrentRepairService
             failed);
     }
 
-    private static Dictionary<string, string?> BuildKnownHashes(TrackedSnapshot snapshot)
+    private static Dictionary<string, string?> BuildKnownHashes(IndexSnapshot snapshot)
     {
         var known = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in snapshot.Items)
         {
             foreach (var file in item.Files)
             {
-                if (string.IsNullOrWhiteSpace(file.Hash))
-                {
-                    continue;
-                }
-
-                if (known.ContainsKey(file.Hash))
+                if (string.IsNullOrWhiteSpace(file.Hash) || known.ContainsKey(file.Hash))
                 {
                     continue;
                 }
@@ -137,10 +124,12 @@ public sealed class TorrentRepairService
         return known;
     }
 
-    private static CancellationTokenSource CreateTimeout(CancellationToken cancellationToken, TimeSpan timeout)
+    private static CancellationTokenSource CreateTimeout(
+        CancellationToken cancellationToken,
+        TimeSpan timeout)
     {
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(timeout);
-        return cts;
+        var source = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        source.CancelAfter(timeout);
+        return source;
     }
 }

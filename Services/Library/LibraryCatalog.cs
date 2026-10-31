@@ -1,9 +1,11 @@
+using Jellyfin.Plugin.TorrServerStrm.Domain;
+using Jellyfin.Plugin.TorrServerStrm.Infrastructure;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 
-namespace Jellyfin.Plugin.TorrServerStrm.Services;
+namespace Jellyfin.Plugin.TorrServerStrm.Services.Library;
 
-public sealed class LibraryLocation
+public sealed record LibraryLocation
 {
     public string Name { get; init; } = string.Empty;
 
@@ -12,6 +14,13 @@ public sealed class LibraryLocation
     public string TypeLabel { get; init; } = string.Empty;
 
     public string Path { get; init; } = string.Empty;
+
+    public bool IsMovieCompatible { get; init; }
+
+    public bool IsSeriesCompatible { get; init; }
+
+    public bool IsCompatibleWith(MediaKind kind)
+        => kind == MediaKind.Series ? IsSeriesCompatible : IsMovieCompatible;
 }
 
 public sealed class LibraryCatalog
@@ -26,16 +35,16 @@ public sealed class LibraryCatalog
     public List<LibraryLocation> GetLocations()
     {
         var result = new List<LibraryLocation>();
-        var seen = new HashSet<string>(PathComparer);
+        var seen = new HashSet<string>(PathHelper.Comparer);
 
         foreach (var folder in _libraryManager.GetVirtualFolders())
         {
-            var type = folder.CollectionType?.ToString() ?? "unknown";
-            var typeLabel = TypeLabel(folder.CollectionType);
+            var collectionType = folder.CollectionType;
+            var type = collectionType?.ToString() ?? "unknown";
 
             foreach (var path in folder.Locations ?? Array.Empty<string>())
             {
-                if (string.IsNullOrWhiteSpace(path) || !seen.Add(NormalizePath(path)))
+                if (string.IsNullOrWhiteSpace(path) || !seen.Add(PathHelper.Normalize(path)))
                 {
                     continue;
                 }
@@ -44,8 +53,10 @@ public sealed class LibraryCatalog
                 {
                     Name = string.IsNullOrWhiteSpace(folder.Name) ? path : folder.Name,
                     Type = type,
-                    TypeLabel = typeLabel,
-                    Path = path
+                    TypeLabel = TypeLabel(collectionType),
+                    Path = path,
+                    IsMovieCompatible = !IsType(type, MediaKind.Series.ToPrimaryLibraryType()),
+                    IsSeriesCompatible = !IsType(type, MediaKind.Movie.ToPrimaryLibraryType())
                 });
             }
         }
@@ -53,7 +64,7 @@ public sealed class LibraryCatalog
         return result;
     }
 
-    public LibraryLocation Resolve(string? requestedPath, string resolvedType)
+    public LibraryLocation Resolve(string? requestedPath, MediaKind kind)
     {
         var libraries = GetLocations();
         if (libraries.Count == 0)
@@ -61,57 +72,32 @@ public sealed class LibraryCatalog
             throw new InvalidOperationException("No libraries found in Jellyfin.");
         }
 
-        var primaryType = resolvedType == "series" ? "tvshows" : "movies";
+        var primaryType = kind.ToPrimaryLibraryType();
         var available = libraries
-            .Where(l => !IsIncompatible(l.Type, primaryType))
+            .Where(library => library.IsCompatibleWith(kind))
             .ToList();
         if (available.Count == 0)
         {
-            var typeName = resolvedType == "series" ? "Series" : "Movies";
-            throw new InvalidOperationException($"No libraries available for type \"{typeName}\".");
+            throw new InvalidOperationException(
+                $"No libraries available for type \"{kind.ToDisplayName()}\".");
         }
 
         if (!string.IsNullOrWhiteSpace(requestedPath))
         {
-            var requested = NormalizePath(requestedPath!);
             var match = available.FirstOrDefault(
-                l => string.Equals(NormalizePath(l.Path), requested, PathComparison));
+                library => PathHelper.Equals(library.Path, requestedPath));
             if (match is not null)
             {
                 return match;
             }
         }
 
-        return available.FirstOrDefault(
-                   l => string.Equals(l.Type, primaryType, StringComparison.OrdinalIgnoreCase))
+        return available.FirstOrDefault(library => IsType(library.Type, primaryType))
                ?? available[0];
     }
 
-    internal static string NormalizePath(string path)
-    {
-        try
-        {
-            return Path.GetFullPath(path);
-        }
-        catch
-        {
-            return path;
-        }
-    }
-
-    internal static StringComparison PathComparison => OperatingSystem.IsWindows()
-        ? StringComparison.OrdinalIgnoreCase
-        : StringComparison.Ordinal;
-
-    internal static StringComparer PathComparer => OperatingSystem.IsWindows()
-        ? StringComparer.OrdinalIgnoreCase
-        : StringComparer.Ordinal;
-
-    private static bool IsIncompatible(string libraryType, string primaryType)
-    {
-        var isMovieOrSeries = libraryType is "movies" or "tvshows";
-        return isMovieOrSeries && !string.Equals(libraryType, primaryType, StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsType(string libraryType, string expected)
+        => string.Equals(libraryType, expected, StringComparison.OrdinalIgnoreCase);
 
     private static string TypeLabel(CollectionTypeOptions? collectionType)
     {

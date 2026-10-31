@@ -62,13 +62,13 @@
       var librariesLoaded = false;
       var parseTimer = null;
 
-      function primaryTypeFor(type) {
-        return type === 'series' ? 'tvshows' : 'movies';
+      function isCompatible(lib, type) {
+        return type === 'series' ? lib.canAddSeries !== false : lib.canAddMovies !== false;
       }
 
       function fillLibrarySelect() {
         var type = addType.value;
-        var primary = primaryTypeFor(type);
+        var primary = type === 'series' ? 'tvshows' : 'movies';
         librarySelect.innerHTML = '';
 
         if (!librariesLoaded) {
@@ -84,15 +84,13 @@
 
         var available = [];
         libraries.forEach(function (lib) {
-          var conflict = primary
-            && lib.type !== primary
-            && (lib.type === 'movies' || lib.type === 'tvshows');
+          var compatible = isCompatible(lib, type);
           var option = document.createElement('option');
           option.value = lib.path;
           var text = lib.name + ' — ' + lib.typeLabel + ' — ' + lib.path;
-          if (conflict) {
+          if (!compatible) {
             option.disabled = true;
-            text += primary === 'movies' ? ' (not available for movies)' : ' (not available for series)';
+            text += type === 'series' ? ' (not available for series)' : ' (not available for movies)';
           } else {
             available.push(lib);
           }
@@ -100,13 +98,9 @@
           librarySelect.appendChild(option);
         });
 
-        var target = null;
-        if (primary) {
-          target = available.filter(function (lib) { return lib.type === primary; })[0] || null;
-        }
-        if (!target) {
-          target = available[0] || null;
-        }
+        var target = available.filter(function (lib) { return lib.type === primary; })[0]
+          || available[0]
+          || null;
 
         if (target) {
           librarySelect.value = target.path;
@@ -114,9 +108,9 @@
           libraryHint.textContent = '';
         } else {
           librarySelect.disabled = true;
-          libraryHint.textContent = primary === 'movies'
-            ? 'No libraries available for movies.'
-            : (primary === 'tvshows' ? 'No libraries available for series.' : 'No libraries available.');
+          libraryHint.textContent = type === 'series'
+            ? 'No libraries available for series.'
+            : 'No libraries available for movies.';
         }
       }
 
@@ -172,7 +166,7 @@
           ApiClient.ajax({
             type: 'POST',
             url: ApiClient.getUrl('TorrServerStrm/ParseMagnet'),
-            data: JSON.stringify({ Magnet: value }),
+            data: JSON.stringify({ magnet: value }),
             contentType: 'application/json',
             dataType: 'json'
           }).then(function (r) {
@@ -208,12 +202,12 @@
 
         var yr = addYear.value;
         var body = {
-          Magnet: magnet.value.trim(),
-          Type: addType.value,
-          Title: addTitle.value.trim(),
-          Year: yr ? parseInt(yr, 10) : null,
-          YearAuto: addYear.dataset.auto === '1',
-          LibraryPath: librarySelect.value
+          magnet: magnet.value.trim(),
+          type: addType.value,
+          title: addTitle.value.trim(),
+          year: yr ? parseInt(yr, 10) : null,
+          yearAuto: addYear.dataset.auto === '1',
+          libraryPath: librarySelect.value
         };
         out.textContent = 'Getting metadata from TorrServer, please wait…';
         Dashboard.showLoadingMsg();

@@ -16,4 +16,9 @@
     <EmbeddedResource Include="Configuration\configPage.html" />
     <EmbeddedResource Include="Configuration\addPage.html" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+    <EmbeddedResource Remove="tests/**/*" />
+    <None Remove="tests/**/*" />
+  </ItemGroup>
 </Project>
