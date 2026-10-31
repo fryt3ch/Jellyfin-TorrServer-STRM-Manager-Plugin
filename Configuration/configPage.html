@@ -19,8 +19,6 @@
         </div>
         <div class="inputContainer"><input is="emby-input" id="Username" type="text" label="Логин (если включена авторизация)" /></div>
         <div class="inputContainer"><input is="emby-input" id="Password" type="password" label="Пароль" /></div>
-        <div class="inputContainer"><input is="emby-input" id="MoviesPath" type="text" label="Папка библиотеки фильмов" /></div>
-        <div class="inputContainer"><input is="emby-input" id="SeriesPath" type="text" label="Папка библиотеки сериалов" /></div>
         <label class="checkboxContainer">
           <input is="emby-checkbox" type="checkbox" id="ScanAfterAdd" />
           <span>Сканировать библиотеки после добавления</span>
@@ -43,6 +41,10 @@
             <option value="series">Сериал</option>
           </select>
         </div>
+        <div class="selectContainer">
+          <select is="emby-select" id="LibrarySelect" label="Библиотека"></select>
+          <div class="fieldDescription" id="LibraryHint">Загружаю библиотеки Jellyfin…</div>
+        </div>
         <div class="inputContainer">
           <input is="emby-input" id="AddTitle" type="text" label="Название (можно исправить)" />
         </div>
@@ -50,7 +52,8 @@
           <input is="emby-input" id="AddYear" type="number" label="Год (можно исправить)" />
         </div>
         <div class="fieldDescription">
-          Название, год и тип подставляются из magnet автоматически. Проверьте их перед добавлением.
+          Название, год, тип и библиотека подставляются автоматически. Проверьте их перед добавлением.
+          Библиотеки фильмов и сериалов другого типа недоступны для выбора.
           Если оставить название пустым, плагин попробует определить его по файлам TorrServer.
         </div>
         <button is="emby-button" type="submit" class="raised button-submit block"><span>Добавить</span></button>
@@ -67,7 +70,7 @@
     (function () {
       var pluginId = '7c1f3a52-9d4e-4b8a-a6f1-2e5b8c9d0f13';
       var page = document.querySelector('#TsCfgPage');
-      var cfgText = ['TorrServerUrl', 'StreamBaseUrl', 'Username', 'Password', 'MoviesPath', 'SeriesPath'];
+      var cfgText = ['TorrServerUrl', 'StreamBaseUrl', 'Username', 'Password'];
 
       page.addEventListener('pageshow', function () {
         Dashboard.showLoadingMsg();
@@ -78,6 +81,7 @@
         }).catch(function () {
           Dashboard.hideLoadingMsg();
         });
+        loadLibraries();
       });
 
       page.querySelector('#TsCfgForm').addEventListener('submit', function (e) {
@@ -97,7 +101,90 @@
       var addType = page.querySelector('#AddType');
       var addTitle = page.querySelector('#AddTitle');
       var addYear = page.querySelector('#AddYear');
+      var librarySelect = page.querySelector('#LibrarySelect');
+      var libraryHint = page.querySelector('#LibraryHint');
+      var libraries = [];
+      var librariesLoaded = false;
       var parseTimer = null;
+
+      function primaryTypeFor(type) {
+        return type === 'movie' ? 'movies' : (type === 'series' ? 'tvshows' : null);
+      }
+
+      function fillLibrarySelect() {
+        var type = addType.value;
+        var primary = primaryTypeFor(type);
+        librarySelect.innerHTML = '';
+
+        if (!librariesLoaded) {
+          libraryHint.textContent = 'Загружаю библиотеки Jellyfin…';
+          return;
+        }
+
+        if (!libraries.length) {
+          librarySelect.disabled = true;
+          libraryHint.textContent = 'В Jellyfin не найдено библиотек.';
+          return;
+        }
+
+        var available = [];
+        libraries.forEach(function (lib) {
+          var conflict = primary
+            && lib.type !== primary
+            && (lib.type === 'movies' || lib.type === 'tvshows');
+          var option = document.createElement('option');
+          option.value = lib.path;
+          var text = lib.name + ' — ' + lib.typeLabel + ' — ' + lib.path;
+          if (conflict) {
+            option.disabled = true;
+            text += primary === 'movies' ? ' (недоступно для фильма)' : ' (недоступно для сериала)';
+          } else {
+            available.push(lib);
+          }
+          option.textContent = text;
+          librarySelect.appendChild(option);
+        });
+
+        var target = null;
+        if (primary) {
+          target = available.filter(function (lib) { return lib.type === primary; })[0] || null;
+        }
+        if (!target) {
+          target = available[0] || null;
+        }
+
+        if (target) {
+          librarySelect.value = target.path;
+          librarySelect.disabled = false;
+          libraryHint.textContent = '';
+        } else {
+          librarySelect.disabled = true;
+          libraryHint.textContent = primary === 'movies'
+            ? 'Нет библиотек, доступных для фильмов.'
+            : (primary === 'tvshows' ? 'Нет библиотек, доступных для сериалов.' : 'Нет доступных библиотек.');
+        }
+      }
+
+      function loadLibraries() {
+        if (librariesLoaded) {
+          fillLibrarySelect();
+          return;
+        }
+
+        ApiClient.ajax({
+          type: 'GET',
+          url: ApiClient.getUrl('TorrServerStrm/Libraries'),
+          dataType: 'json'
+        }).then(function (r) {
+          libraries = r || [];
+          librariesLoaded = true;
+          fillLibrarySelect();
+        }).catch(function () {
+          libraries = [];
+          librariesLoaded = true;
+          fillLibrarySelect();
+        });
+      }
 
       function trackTitleYear(el) {
         el.addEventListener('input', function () {
@@ -112,6 +199,7 @@
       trackTitleYear(addYear);
       addType.addEventListener('change', function () {
         addType.dataset.manual = '1';
+        fillLibrarySelect();
       });
 
       magnet.addEventListener('input', function () {
@@ -145,7 +233,11 @@
               addYear.dataset.auto = r.year ? '1' : '0';
             }
             if (r.title && r.type && addType.dataset.manual !== '1') {
+              var previousType = addType.value;
               addType.value = r.type;
+              if (previousType !== addType.value) {
+                fillLibrarySelect();
+              }
             }
           }).catch(function () {});
         }, 250);
@@ -154,13 +246,19 @@
       page.querySelector('#TsAddForm').addEventListener('submit', function (e) {
         e.preventDefault();
         var out = page.querySelector('#TsResult');
+        if (!librarySelect.value || librarySelect.disabled) {
+          out.textContent = 'Нет доступной библиотеки для сохранения .strm.';
+          return false;
+        }
+
         var yr = addYear.value;
         var body = {
           Magnet: magnet.value.trim(),
           Type: addType.value,
           Title: addTitle.value.trim(),
           Year: yr ? parseInt(yr, 10) : null,
-          YearAuto: addYear.dataset.auto === '1'
+          YearAuto: addYear.dataset.auto === '1',
+          LibraryPath: librarySelect.value
         };
         out.textContent = 'Получаю метаданные из TorrServer, подождите…';
         Dashboard.showLoadingMsg();
@@ -177,7 +275,12 @@
             name += ' (' + r.year + ')';
           }
           var kind = r.type === 'series' ? 'сериал' : 'фильм';
-          out.textContent = 'Готово: ' + name + ' [' + kind + ']\nСоздано файлов: ' + r.files.length + '\n' + r.files.join('\n');
+          var lines = ['Готово: ' + name + ' [' + kind + ']'];
+          if (r.libraryPath) {
+            lines.push('Библиотека: ' + r.libraryPath);
+          }
+          lines.push('Создано файлов: ' + r.files.length);
+          out.textContent = lines.join('\n') + '\n' + r.files.join('\n');
         }).catch(function (err) {
           Dashboard.hideLoadingMsg();
           if (err && err.json) {

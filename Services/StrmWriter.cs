@@ -39,6 +39,7 @@ public static class StrmWriter
         string title,
         int? year,
         TorrentInfo torrent,
+        string libraryRoot,
         bool includeSeriesYear = false)
     {
         var videos = (torrent.FileStats ?? new()).Where(f => VideoExt.Contains(System.IO.Path.GetExtension(f.Path))).ToList();
@@ -48,7 +49,6 @@ public static class StrmWriter
         }
 
         var baseUrl = ResolveBaseUrl(cfg);
-        var libraryRoot = type == "movie" ? cfg.MoviesPath : cfg.SeriesPath;
         var safeLibraryRoot = System.IO.Path.GetFullPath(libraryRoot);
 
         if (type == "movie")

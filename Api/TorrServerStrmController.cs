@@ -1,5 +1,6 @@
 using Jellyfin.Plugin.TorrServerStrm.Services;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,15 @@ public class AddRequest
     public string? Title { get; set; }
     public int? Year { get; set; }
     public bool YearAuto { get; set; }
+    public string? LibraryPath { get; set; }
+}
+
+public class LibraryLocation
+{
+    public string Name { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public string TypeLabel { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
 }
 
 public class ParseMagnetRequest
@@ -40,6 +50,12 @@ public class TorrServerStrmController : ControllerBase
         _libraryManager = libraryManager;
         _store = store;
         _logger = logger;
+    }
+
+    [HttpGet("Libraries")]
+    public ActionResult GetLibraries()
+    {
+        return Ok(GetLibraryLocations());
     }
 
     [HttpPost("ParseMagnet")]
@@ -110,7 +126,8 @@ public class TorrServerStrmController : ControllerBase
             }
 
             var includeSeriesYear = resolvedType == "series" && manualYear;
-            written = StrmWriter.Write(cfg, resolvedType, title, year, torrent, includeSeriesYear);
+            var selectedLibrary = ResolveLibrary(req.LibraryPath, resolvedType);
+            written = StrmWriter.Write(cfg, resolvedType, title, year, torrent, selectedLibrary.Path, includeSeriesYear);
 
             var item = new StoredItem
             {
@@ -158,6 +175,8 @@ public class TorrServerStrmController : ControllerBase
                 title,
                 year,
                 type = resolvedType,
+                library = selectedLibrary.Name,
+                libraryPath = selectedLibrary.Path,
                 files = written.Files.Select(f => f.Path).ToArray()
             });
         }
@@ -184,4 +203,110 @@ public class TorrServerStrmController : ControllerBase
             return StatusCode(500, new { error = ex.Message });
         }
     }
+
+    private List<LibraryLocation> GetLibraryLocations()
+    {
+        var result = new List<LibraryLocation>();
+        var seen = new HashSet<string>(PathComparer);
+
+        foreach (var folder in _libraryManager.GetVirtualFolders())
+        {
+            var type = folder.CollectionType?.ToString() ?? "unknown";
+            var typeLabel = TypeLabel(folder.CollectionType);
+
+            foreach (var path in folder.Locations ?? Array.Empty<string>())
+            {
+                if (string.IsNullOrWhiteSpace(path) || !seen.Add(NormalizePath(path)))
+                {
+                    continue;
+                }
+
+                result.Add(new LibraryLocation
+                {
+                    Name = string.IsNullOrWhiteSpace(folder.Name) ? path : folder.Name,
+                    Type = type,
+                    TypeLabel = typeLabel,
+                    Path = path
+                });
+            }
+        }
+
+        return result;
+    }
+
+    private LibraryLocation ResolveLibrary(string? requestedPath, string resolvedType)
+    {
+        var libraries = GetLibraryLocations();
+        if (libraries.Count == 0)
+        {
+            throw new InvalidOperationException("В Jellyfin не найдено ни одной библиотеки.");
+        }
+
+        var primaryType = resolvedType == "series" ? "tvshows" : "movies";
+        var available = libraries
+            .Where(l => !IsIncompatible(l.Type, primaryType))
+            .ToList();
+        if (available.Count == 0)
+        {
+            var typeName = resolvedType == "series" ? "Сериалы" : "Фильмы";
+            throw new InvalidOperationException($"Нет библиотек, доступных для типа «{typeName}».");
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedPath))
+        {
+            var requested = NormalizePath(requestedPath!);
+            var match = available.FirstOrDefault(
+                l => string.Equals(NormalizePath(l.Path), requested, PathComparison));
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return available.FirstOrDefault(
+                   l => string.Equals(l.Type, primaryType, StringComparison.OrdinalIgnoreCase))
+               ?? available[0];
+    }
+
+    private static bool IsIncompatible(string libraryType, string primaryType)
+    {
+        var isMovieOrSeries = libraryType is "movies" or "tvshows";
+        return isMovieOrSeries && !string.Equals(libraryType, primaryType, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string TypeLabel(CollectionTypeOptions? collectionType)
+    {
+        return collectionType switch
+        {
+            CollectionTypeOptions.movies => "Фильмы",
+            CollectionTypeOptions.tvshows => "Сериалы",
+            CollectionTypeOptions.music => "Музыка",
+            CollectionTypeOptions.musicvideos => "Клипы",
+            CollectionTypeOptions.homevideos => "Домашние видео",
+            CollectionTypeOptions.boxsets => "Коллекции",
+            CollectionTypeOptions.books => "Книги",
+            CollectionTypeOptions.mixed => "Смешанное",
+            _ => "Без типа"
+        };
+    }
+
+    private static string NormalizePath(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch
+        {
+            return path;
+        }
+    }
+
+    private static StringComparison PathComparison => OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
+
+    private static StringComparer PathComparer => OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
 }

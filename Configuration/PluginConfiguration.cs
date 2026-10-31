@@ -14,9 +14,5 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public string Password { get; set; } = string.Empty;
 
-    public string MoviesPath { get; set; } = "/media/movies";
-
-    public string SeriesPath { get; set; } = "/media/series";
-
     public bool ScanAfterAdd { get; set; } = true;
 }
