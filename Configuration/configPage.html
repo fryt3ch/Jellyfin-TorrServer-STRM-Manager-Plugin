@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>TorrServer STRM</title></head>
+<body>
+<div id="TsCfgPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox,emby-select">
+  <div data-role="content">
+    <div class="content-primary">
+      <h2>TorrServer STRM</h2>
+
+      <h3>Настройки</h3>
+      <form id="TsCfgForm">
+        <div class="inputContainer">
+          <input is="emby-input" id="TorrServerUrl" type="text" label="Адрес TorrServer (для API)" />
+          <div class="fieldDescription">Например http://192.168.1.10:8090</div>
+        </div>
+        <div class="inputContainer">
+          <input is="emby-input" id="StreamBaseUrl" type="text" label="Адрес TorrServer для .strm (необязательно)" />
+          <div class="fieldDescription">Если клиенты видят TorrServer по другому адресу. Пусто = тот же.</div>
+        </div>
+        <div class="inputContainer"><input is="emby-input" id="Username" type="text" label="Логин (если включена авторизация)" /></div>
+        <div class="inputContainer"><input is="emby-input" id="Password" type="password" label="Пароль" /></div>
+        <div class="inputContainer"><input is="emby-input" id="MoviesPath" type="text" label="Папка библиотеки фильмов" /></div>
+        <div class="inputContainer"><input is="emby-input" id="SeriesPath" type="text" label="Папка библиотеки сериалов" /></div>
+        <label class="checkboxContainer">
+          <input is="emby-checkbox" type="checkbox" id="ScanAfterAdd" />
+          <span>Сканировать библиотеки после добавления</span>
+        </label>
+        <br />
+        <button is="emby-button" type="submit" class="raised button-submit block"><span>Сохранить настройки</span></button>
+      </form>
+
+      <hr />
+
+      <h2>Добавить magnet</h2>
+      <form id="TsAddForm">
+        <div class="inputContainer">
+          <input is="emby-input" id="Magnet" type="text" label="Magnet-ссылка" required />
+        </div>
+        <div class="selectContainer">
+          <select is="emby-select" id="AddType" label="Тип">
+            <option value="auto">Определить автоматически</option>
+            <option value="movie">Фильм</option>
+            <option value="series">Сериал</option>
+          </select>
+        </div>
+        <div class="inputContainer">
+          <input is="emby-input" id="AddTitle" type="text" label="Название (можно исправить)" />
+        </div>
+        <div class="inputContainer">
+          <input is="emby-input" id="AddYear" type="number" label="Год (можно исправить)" />
+        </div>
+        <div class="fieldDescription">
+          Название, год и тип подставляются из magnet автоматически. Проверьте их перед добавлением.
+          Если оставить название пустым, плагин попробует определить его по файлам TorrServer.
+        </div>
+        <button is="emby-button" type="submit" class="raised button-submit block"><span>Добавить</span></button>
+      </form>
+
+      <div class="fieldDescription" style="margin-top:1em;">
+        Удаляйте фильмы и сериалы обычной кнопкой удаления в Jellyfin. Торрент из TorrServer
+        удалится автоматически, когда на него не останется ссылок в .strm.
+      </div>
+      <pre id="TsResult" style="margin-top:1.5em;white-space:pre-wrap;"></pre>
+    </div>
+  </div>
+  <script type="text/javascript">
+    (function () {
+      var pluginId = '7c1f3a52-9d4e-4b8a-a6f1-2e5b8c9d0f13';
+      var page = document.querySelector('#TsCfgPage');
+      var cfgText = ['TorrServerUrl', 'StreamBaseUrl', 'Username', 'Password', 'MoviesPath', 'SeriesPath'];
+
+      page.addEventListener('pageshow', function () {
+        Dashboard.showLoadingMsg();
+        ApiClient.getPluginConfiguration(pluginId).then(function (c) {
+          cfgText.forEach(function (k) { page.querySelector('#' + k).value = c[k] || ''; });
+          page.querySelector('#ScanAfterAdd').checked = !!c.ScanAfterAdd;
+          Dashboard.hideLoadingMsg();
+        }).catch(function () {
+          Dashboard.hideLoadingMsg();
+        });
+      });
+
+      page.querySelector('#TsCfgForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        Dashboard.showLoadingMsg();
+        ApiClient.getPluginConfiguration(pluginId).then(function (c) {
+          cfgText.forEach(function (k) { c[k] = page.querySelector('#' + k).value.trim(); });
+          c.ScanAfterAdd = page.querySelector('#ScanAfterAdd').checked;
+          ApiClient.updatePluginConfiguration(pluginId, c).then(Dashboard.processPluginConfigurationUpdateResult);
+        }).catch(function () {
+          Dashboard.hideLoadingMsg();
+        });
+        return false;
+      });
+
+      var magnet = page.querySelector('#Magnet');
+      var addType = page.querySelector('#AddType');
+      var addTitle = page.querySelector('#AddTitle');
+      var addYear = page.querySelector('#AddYear');
+      var parseTimer = null;
+
+      function trackTitleYear(el) {
+        el.addEventListener('input', function () {
+          el.dataset.manual = el.value.trim() ? '1' : '0';
+          if (el === addYear) {
+            el.dataset.auto = '0';
+          }
+        });
+      }
+
+      trackTitleYear(addTitle);
+      trackTitleYear(addYear);
+      addType.addEventListener('change', function () {
+        addType.dataset.manual = '1';
+      });
+
+      magnet.addEventListener('input', function () {
+        var value = magnet.value.trim();
+        clearTimeout(parseTimer);
+        if (value.toLowerCase().indexOf('magnet:?') !== 0) {
+          return;
+        }
+
+        parseTimer = setTimeout(function () {
+          if (magnet.value.trim() !== value) {
+            return;
+          }
+
+          ApiClient.ajax({
+            type: 'POST',
+            url: ApiClient.getUrl('TorrServerStrm/ParseMagnet'),
+            data: JSON.stringify({ Magnet: value }),
+            contentType: 'application/json',
+            dataType: 'json'
+          }).then(function (r) {
+            if (magnet.value.trim() !== value || !r) {
+              return;
+            }
+
+            if (addTitle.dataset.manual !== '1') {
+              addTitle.value = r.title || '';
+            }
+            if (addYear.dataset.manual !== '1') {
+              addYear.value = r.year || '';
+              addYear.dataset.auto = r.year ? '1' : '0';
+            }
+            if (r.title && r.type && addType.dataset.manual !== '1') {
+              addType.value = r.type;
+            }
+          }).catch(function () {});
+        }, 250);
+      });
+
+      page.querySelector('#TsAddForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var out = page.querySelector('#TsResult');
+        var yr = addYear.value;
+        var body = {
+          Magnet: magnet.value.trim(),
+          Type: addType.value,
+          Title: addTitle.value.trim(),
+          Year: yr ? parseInt(yr, 10) : null,
+          YearAuto: addYear.dataset.auto === '1'
+        };
+        out.textContent = 'Получаю метаданные из TorrServer, подождите…';
+        Dashboard.showLoadingMsg();
+        ApiClient.ajax({
+          type: 'POST',
+          url: ApiClient.getUrl('TorrServerStrm/Add'),
+          data: JSON.stringify(body),
+          contentType: 'application/json',
+          dataType: 'json'
+        }).then(function (r) {
+          Dashboard.hideLoadingMsg();
+          var name = r.title || 'без названия';
+          if (r.year) {
+            name += ' (' + r.year + ')';
+          }
+          var kind = r.type === 'series' ? 'сериал' : 'фильм';
+          out.textContent = 'Готово: ' + name + ' [' + kind + ']\nСоздано файлов: ' + r.files.length + '\n' + r.files.join('\n');
+        }).catch(function (err) {
+          Dashboard.hideLoadingMsg();
+          if (err && err.json) {
+            err.json().then(function (j) { out.textContent = 'Ошибка: ' + (j.error || JSON.stringify(j)); });
+          } else {
+            out.textContent = 'Ошибка запроса';
+          }
+        });
+        return false;
+      });
+    })();
+  </script>
+</div>
+</body>
+</html>
