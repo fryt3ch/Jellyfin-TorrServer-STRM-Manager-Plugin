@@ -10,12 +10,12 @@
       <h3>Настройки</h3>
       <form id="TsCfgForm">
         <div class="inputContainer">
-          <input is="emby-input" id="TorrServerUrl" type="text" label="Адрес TorrServer (для API)" />
-          <div class="fieldDescription">Например http://192.168.1.10:8090</div>
+          <input is="emby-input" id="TorrServerUrl" type="text" label="Адрес TorrServer API (из Jellyfin)" />
+          <div class="fieldDescription">Должен быть доступен с сервера Jellyfin (в Docker — имя контейнера). Например http://torrserver:8090</div>
         </div>
         <div class="inputContainer">
-          <input is="emby-input" id="StreamBaseUrl" type="text" label="Адрес TorrServer для .strm (необязательно)" />
-          <div class="fieldDescription">Если клиенты видят TorrServer по другому адресу. Пусто = тот же.</div>
+          <input is="emby-input" id="StreamBaseUrl" type="text" label="Адрес для плееров (в .strm, необязательно)" />
+          <div class="fieldDescription">Доступен с клиентов (ТВ, телефон). Пусто = адрес API. Например http://192.168.1.10:8090</div>
         </div>
         <div class="inputContainer"><input is="emby-input" id="Username" type="text" label="Логин (если включена авторизация)" /></div>
         <div class="inputContainer"><input is="emby-input" id="Password" type="password" label="Пароль" /></div>

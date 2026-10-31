@@ -4,10 +4,10 @@ namespace Jellyfin.Plugin.TorrServerStrm.Configuration;
 
 public class PluginConfiguration : BasePluginConfiguration
 {
-    /// <summary>Адрес TorrServer для API (с точки зрения сервера Jellyfin).</summary>
+    /// <summary>Адрес TorrServer API, доступный с сервера Jellyfin (например имя контейнера).</summary>
     public string TorrServerUrl { get; set; } = "http://localhost:8090";
 
-    /// <summary>Адрес TorrServer, который попадёт в .strm (если клиенты видят его по другому адресу). Пусто = как TorrServerUrl.</summary>
+    /// <summary>Адрес TorrServer, доступный с клиентов и записываемый в .strm. Пусто = как TorrServerUrl.</summary>
     public string StreamBaseUrl { get; set; } = string.Empty;
 
     public string Username { get; set; } = string.Empty;
