@@ -33,7 +33,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     public static Plugin? Instance { get; private set; }
 
-    public override string Name => "TorrServer STRM";
+    public override string Name => "TorrServer STRM Manager";
 
     public override Guid Id => Guid.Parse("7c1f3a52-9d4e-4b8a-a6f1-2e5b8c9d0f13");
 
@@ -70,13 +70,13 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         var settingsPage = new PluginPageInfo
         {
             Name = "TorrServerStrm",
-            DisplayName = "TorrServer STRM",
+            DisplayName = "TorrServer STRM Manager Settings",
             EmbeddedResourcePath = $"{ns}.Configuration.configPage.html"
         };
         var addPage = new PluginPageInfo
         {
             Name = "TorrServerStrmAdd",
-            DisplayName = "TorrServer STRM",
+            DisplayName = "Import .magnet link",
             EmbeddedResourcePath = $"{ns}.Configuration.addPage.html",
             EnableInMainMenu = true,
             MenuSection = "server",
