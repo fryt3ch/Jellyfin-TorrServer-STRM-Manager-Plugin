@@ -10,7 +10,7 @@ namespace Jellyfin.Plugin.TorrServerStrm.Api;
 public class AddRequest
 {
     public string Magnet { get; set; } = string.Empty;
-    public string Type { get; set; } = "auto";
+    public string Type { get; set; } = "movie";
     public string? Title { get; set; }
     public int? Year { get; set; }
     public bool YearAuto { get; set; }
@@ -78,9 +78,9 @@ public class TorrServerStrmController : ControllerBase
             || !req.Magnet.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
             return BadRequest(new { error = "Нужна magnet-ссылка." });
 
-        var requestedType = string.IsNullOrWhiteSpace(req.Type) ? "auto" : req.Type;
-        if (requestedType != "auto" && requestedType != "movie" && requestedType != "series")
-            return BadRequest(new { error = "Тип: auto, movie или series." });
+        var requestedType = string.IsNullOrWhiteSpace(req.Type) ? "movie" : req.Type;
+        if (requestedType != "movie" && requestedType != "series")
+            return BadRequest(new { error = "Тип: movie или series." });
 
         TorrServerClient? client = null;
         TorrentInfo? torrent = null;
@@ -91,7 +91,7 @@ public class TorrServerStrmController : ControllerBase
             client = new TorrServerClient(_httpFactory.CreateClient(), cfg);
             torrent = await client.AddAsync(req.Magnet, req.Title, ct);
 
-            var resolvedType = requestedType == "auto" ? TitleParser.DetectType(torrent) : requestedType;
+            var resolvedType = requestedType;
             var title = req.Title?.Trim() ?? string.Empty;
             var manualYear = req.Year.HasValue && !req.YearAuto;
             var year = req.Year;

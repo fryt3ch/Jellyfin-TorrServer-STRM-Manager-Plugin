@@ -16,8 +16,7 @@
         </div>
         <div class="selectContainer">
           <select is="emby-select" id="AddType" label="Тип">
-            <option value="auto">Определить автоматически</option>
-            <option value="movie">Фильм</option>
+            <option value="movie" selected>Фильм</option>
             <option value="series">Сериал</option>
           </select>
         </div>
@@ -32,8 +31,8 @@
           <input is="emby-input" id="AddYear" type="number" label="Год" />
         </div>
         <div class="fieldDescription">
-          Название, год, тип и библиотека подставляются автоматически. Проверьте их перед добавлением.
-          Библиотеки фильмов и сериалов другого типа недоступны для выбора.
+          Название, год, тип и библиотека подставляются автоматически из magnet. По умолчанию выбран фильм.
+          Проверьте значения перед добавлением. Библиотеки фильмов и сериалов другого типа недоступны для выбора.
           Если оставить название пустым, плагин попробует определить его по файлам TorrServer.
         </div>
         <button is="emby-button" type="submit" class="raised button-submit block"><span>Добавить</span></button>
@@ -64,7 +63,7 @@
       var parseTimer = null;
 
       function primaryTypeFor(type) {
-        return type === 'movie' ? 'movies' : (type === 'series' ? 'tvshows' : null);
+        return type === 'series' ? 'tvshows' : 'movies';
       }
 
       function fillLibrarySelect() {
@@ -155,7 +154,6 @@
       trackTitleYear(addTitle);
       trackTitleYear(addYear);
       addType.addEventListener('change', function () {
-        addType.dataset.manual = '1';
         fillLibrarySelect();
       });
 
@@ -189,7 +187,7 @@
               addYear.value = r.year || '';
               addYear.dataset.auto = r.year ? '1' : '0';
             }
-            if (r.title && r.type && addType.dataset.manual !== '1') {
+            if (r.type === 'movie' || r.type === 'series') {
               var previousType = addType.value;
               addType.value = r.type;
               if (previousType !== addType.value) {
