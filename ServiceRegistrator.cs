@@ -11,5 +11,6 @@ public sealed class ServiceRegistrator : IPluginServiceRegistrator
     {
         serviceCollection.AddSingleton<LibraryStore>();
         serviceCollection.AddSingleton<TorrentCleanupService>();
+        serviceCollection.AddSingleton<StrmUrlRewriter>();
     }
 }

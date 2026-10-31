@@ -47,7 +47,7 @@ public static class StrmWriter
             throw new InvalidOperationException("В торренте нет видеофайлов.");
         }
 
-        var baseUrl = (string.IsNullOrWhiteSpace(cfg.StreamBaseUrl) ? cfg.TorrServerUrl : cfg.StreamBaseUrl).TrimEnd('/');
+        var baseUrl = ResolveBaseUrl(cfg);
         var libraryRoot = type == "movie" ? cfg.MoviesPath : cfg.SeriesPath;
         var safeLibraryRoot = System.IO.Path.GetFullPath(libraryRoot);
 
@@ -138,6 +138,11 @@ public static class StrmWriter
             Rollback(result);
             throw;
         }
+    }
+
+    public static string ResolveBaseUrl(PluginConfiguration cfg)
+    {
+        return (string.IsNullOrWhiteSpace(cfg.StreamBaseUrl) ? cfg.TorrServerUrl : cfg.StreamBaseUrl).TrimEnd('/');
     }
 
     public static void Rollback(WriteResult result)

@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
@@ -87,6 +88,74 @@ public sealed class LibraryStore
 
             await SaveInternalAsync(manifest, cancellationToken).ConfigureAwait(false);
             return (existing, obsolete);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public async Task<int> RewriteStreamUrlsAsync(string newBaseUrl, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(newBaseUrl))
+        {
+            return 0;
+        }
+
+        var baseUrl = newBaseUrl.TrimEnd('/');
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var manifest = await LoadInternalAsync(cancellationToken).ConfigureAwait(false);
+            var updated = 0;
+
+            foreach (var item in manifest.Items)
+            {
+                foreach (var file in item.Files)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (string.IsNullOrWhiteSpace(file.Path) || !File.Exists(file.Path))
+                    {
+                        continue;
+                    }
+
+                    string content;
+                    try
+                    {
+                        content = await File.ReadAllTextAsync(file.Path, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Не удалось прочитать .strm: {Path}", file.Path);
+                        continue;
+                    }
+
+                    var streamIndex = content.IndexOf("/stream/", StringComparison.Ordinal);
+                    if (streamIndex < 0)
+                    {
+                        continue;
+                    }
+
+                    var rewritten = baseUrl + content[streamIndex..];
+                    if (string.Equals(rewritten, content, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        await File.WriteAllTextAsync(file.Path, rewritten, new UTF8Encoding(false), cancellationToken)
+                            .ConfigureAwait(false);
+                        updated++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Не удалось обновить .strm: {Path}", file.Path);
+                    }
+                }
+            }
+
+            return updated;
         }
         finally
         {
