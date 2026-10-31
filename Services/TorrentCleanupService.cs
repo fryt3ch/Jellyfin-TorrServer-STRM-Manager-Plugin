@@ -6,17 +6,17 @@ namespace Jellyfin.Plugin.TorrServerStrm.Services;
 public sealed class TorrentCleanupService
 {
     private readonly IHttpClientFactory _httpFactory;
-    private readonly LibraryStore _store;
+    private readonly StrmIndex _index;
     private readonly ILogger<TorrentCleanupService> _logger;
 
     public TorrentCleanupService(
         ILibraryManager libraryManager,
         IHttpClientFactory httpFactory,
-        LibraryStore store,
+        StrmIndex index,
         ILogger<TorrentCleanupService> logger)
     {
         _httpFactory = httpFactory;
-        _store = store;
+        _index = index;
         _logger = logger;
         libraryManager.ItemRemoved += OnItemRemoved;
     }
@@ -36,7 +36,7 @@ public sealed class TorrentCleanupService
     {
         try
         {
-            var hashes = await _store.RemoveMissingFilesAsync(path, CancellationToken.None).ConfigureAwait(false);
+            var hashes = await _index.RemoveMissingFilesAsync(path, CancellationToken.None).ConfigureAwait(false);
             if (hashes.Count == 0)
             {
                 return;

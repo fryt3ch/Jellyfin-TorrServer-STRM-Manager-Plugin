@@ -26,6 +26,16 @@
         <br />
         <button is="emby-button" type="submit" class="raised button-submit block"><span>Сохранить настройки</span></button>
       </form>
+
+      <hr />
+
+      <h3>Отслеживаемые файлы</h3>
+      <div class="fieldDescription" id="TrackedSummary">Загружаю индекс…</div>
+      <div class="inputContainer">
+        <input is="emby-input" id="TrackedSearch" type="text" label="Поиск по названию, пути или hash" />
+      </div>
+      <button is="emby-button" type="button" id="BtnTrackedRefresh" class="raised"><span>Обновить</span></button>
+      <div id="TrackedList" style="margin-top:1em;"></div>
     </div>
   </div>
   <script type="text/javascript">
@@ -43,6 +53,7 @@
         }).catch(function () {
           Dashboard.hideLoadingMsg();
         });
+        loadTracked();
       });
 
       page.querySelector('#TsCfgForm').addEventListener('submit', function (e) {
@@ -57,6 +68,129 @@
         });
         return false;
       });
+
+      var tracked = null;
+      var trackedSearch = page.querySelector('#TrackedSearch');
+      var trackedList = page.querySelector('#TrackedList');
+      var trackedSummary = page.querySelector('#TrackedSummary');
+
+      function formatDate(value) {
+        if (!value) {
+          return '—';
+        }
+
+        try {
+          return new Date(value).toLocaleString();
+        } catch (e) {
+          return value;
+        }
+      }
+
+      function matchesTracked(item, term) {
+        if (!term) {
+          return true;
+        }
+
+        var haystack = [item.title || '', item.rootPath || '', item.libraryRoot || ''];
+        (item.files || []).forEach(function (file) {
+          haystack.push(file.path || '', file.hash || '');
+        });
+
+        return haystack.join('\n').toLowerCase().indexOf(term) >= 0;
+      }
+
+      function renderTracked() {
+        var term = trackedSearch.value.trim().toLowerCase();
+        trackedList.textContent = '';
+
+        if (!tracked) {
+          return;
+        }
+
+        var items = (tracked.items || []).filter(function (item) {
+          return matchesTracked(item, term);
+        });
+        var totalFiles = items.reduce(function (sum, item) {
+          return sum + (item.files ? item.files.length : 0);
+        }, 0);
+        var missing = items.reduce(function (sum, item) {
+          return sum + (item.files || []).filter(function (file) { return !file.exists; }).length;
+        }, 0);
+
+        trackedSummary.textContent = 'Элементов: ' + items.length
+          + ' · Файлов: ' + totalFiles
+          + ' · Нет на диске: ' + missing
+          + ' · Индекс: ' + formatDate(tracked.loadedAt);
+
+        if (!items.length) {
+          var empty = document.createElement('div');
+          empty.className = 'fieldDescription';
+          empty.textContent = tracked.items && tracked.items.length
+            ? 'Ничего не найдено.'
+            : 'Отслеживаемых файлов нет.';
+          trackedList.appendChild(empty);
+          return;
+        }
+
+        items.forEach(function (item) {
+          var details = document.createElement('details');
+          details.style.marginBottom = '0.75em';
+
+          var summary = document.createElement('summary');
+          var title = item.title || '(без названия)';
+          if (item.year) {
+            title += ' (' + item.year + ')';
+          }
+
+          var kind = item.type === 'series' ? 'Сериал' : 'Фильм';
+          summary.textContent = kind + ': ' + title + ' — ' + (item.files ? item.files.length : 0) + ' файл(ов)';
+          details.appendChild(summary);
+
+          var list = document.createElement('ul');
+          list.style.marginTop = '0.5em';
+          (item.files || []).forEach(function (file) {
+            var li = document.createElement('li');
+            li.style.marginBottom = '0.35em';
+
+            var path = document.createElement('code');
+            path.textContent = file.path || '';
+            li.appendChild(path);
+
+            var hash = document.createElement('div');
+            hash.className = 'fieldDescription';
+            hash.textContent = 'hash: ' + (file.hash || '');
+            if (!file.exists) {
+              hash.textContent += ' · файл отсутствует';
+              hash.style.color = '#cc0000';
+            }
+
+            li.appendChild(hash);
+            list.appendChild(li);
+          });
+
+          details.appendChild(list);
+          trackedList.appendChild(details);
+        });
+      }
+
+      function loadTracked() {
+        trackedSummary.textContent = 'Загружаю индекс…';
+        trackedList.textContent = '';
+        ApiClient.ajax({
+          type: 'GET',
+          url: ApiClient.getUrl('TorrServerStrm/Tracked'),
+          dataType: 'json'
+        }).then(function (r) {
+          tracked = r;
+          renderTracked();
+        }).catch(function () {
+          tracked = null;
+          trackedSummary.textContent = 'Не удалось загрузить список отслеживаемых файлов.';
+        });
+      }
+
+      trackedSearch.addEventListener('input', renderTracked);
+      page.querySelector('#BtnTrackedRefresh').addEventListener('click', loadTracked);
     })();
   </script>
 </div>

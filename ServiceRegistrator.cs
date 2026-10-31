@@ -9,8 +9,10 @@ public sealed class ServiceRegistrator : IPluginServiceRegistrator
 {
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
-        serviceCollection.AddSingleton<LibraryStore>();
+        serviceCollection.AddSingleton<LibraryCatalog>();
+        serviceCollection.AddSingleton<StrmIndex>();
         serviceCollection.AddSingleton<TorrentCleanupService>();
         serviceCollection.AddSingleton<StrmUrlRewriter>();
+        serviceCollection.AddHostedService<StrmIndexStartupService>();
     }
 }
