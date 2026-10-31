@@ -63,7 +63,7 @@
       var parseTimer = null;
 
       function isCompatible(lib, type) {
-        return type === 'series' ? lib.canAddSeries !== false : lib.canAddMovies !== false;
+        return type === 'series' ? lib.CanAddSeries !== false : lib.CanAddMovies !== false;
       }
 
       function fillLibrarySelect() {
@@ -86,8 +86,8 @@
         libraries.forEach(function (lib) {
           var compatible = isCompatible(lib, type);
           var option = document.createElement('option');
-          option.value = lib.path;
-          var text = lib.name + ' — ' + lib.typeLabel + ' — ' + lib.path;
+          option.value = lib.Path;
+          var text = lib.Name + ' — ' + lib.TypeLabel + ' — ' + lib.Path;
           if (!compatible) {
             option.disabled = true;
             text += type === 'series' ? ' (not available for series)' : ' (not available for movies)';
@@ -98,12 +98,12 @@
           librarySelect.appendChild(option);
         });
 
-        var target = available.filter(function (lib) { return lib.type === primary; })[0]
+        var target = available.filter(function (lib) { return lib.Type === primary; })[0]
           || available[0]
           || null;
 
         if (target) {
-          librarySelect.value = target.path;
+          librarySelect.value = target.Path;
           librarySelect.disabled = false;
           libraryHint.textContent = '';
         } else {
@@ -175,15 +175,15 @@
             }
 
             if (addTitle.dataset.manual !== '1') {
-              addTitle.value = r.title || '';
+              addTitle.value = r.Title || '';
             }
             if (addYear.dataset.manual !== '1') {
-              addYear.value = r.year || '';
-              addYear.dataset.auto = r.year ? '1' : '0';
+              addYear.value = r.Year || '';
+              addYear.dataset.auto = r.Year ? '1' : '0';
             }
-            if (r.type === 'movie' || r.type === 'series') {
+            if (r.Type === 'movie' || r.Type === 'series') {
               var previousType = addType.value;
-              addType.value = r.type;
+              addType.value = r.Type;
               if (previousType !== addType.value) {
                 fillLibrarySelect();
               }
@@ -219,21 +219,21 @@
           dataType: 'json'
         }).then(function (r) {
           Dashboard.hideLoadingMsg();
-          var name = r.title || 'untitled';
-          if (r.year) {
-            name += ' (' + r.year + ')';
+          var name = r.Title || 'untitled';
+          if (r.Year) {
+            name += ' (' + r.Year + ')';
           }
-          var kind = r.type === 'series' ? 'series' : 'movie';
+          var kind = r.Type === 'series' ? 'series' : 'movie';
           var lines = ['Done: ' + name + ' [' + kind + ']'];
-          if (r.libraryPath) {
-            lines.push('Library: ' + r.libraryPath);
+          if (r.LibraryPath) {
+            lines.push('Library: ' + r.LibraryPath);
           }
-          lines.push('Files created: ' + r.files.length);
-          out.textContent = lines.join('\n') + '\n' + r.files.join('\n');
+          lines.push('Files created: ' + r.Files.length);
+          out.textContent = lines.join('\n') + '\n' + r.Files.join('\n');
         }).catch(function (err) {
           Dashboard.hideLoadingMsg();
           if (err && err.json) {
-            err.json().then(function (j) { out.textContent = 'Error: ' + (j.error || JSON.stringify(j)); });
+            err.json().then(function (j) { out.textContent = 'Error: ' + (j.Error || JSON.stringify(j)); });
           } else {
             out.textContent = 'Request failed';
           }

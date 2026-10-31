@@ -91,9 +91,9 @@
           return true;
         }
 
-        var haystack = [item.title || '', item.rootPath || '', item.libraryRoot || ''];
-        (item.files || []).forEach(function (file) {
-          haystack.push(file.path || '', file.hash || '');
+        var haystack = [item.Title || '', item.RootPath || '', item.LibraryRoot || ''];
+        (item.Files || []).forEach(function (file) {
+          haystack.push(file.Path || '', file.Hash || '');
         });
 
         return haystack.join('\n').toLowerCase().indexOf(term) >= 0;
@@ -107,25 +107,25 @@
           return;
         }
 
-        var items = (tracked.items || []).filter(function (item) {
+        var items = (tracked.Items || []).filter(function (item) {
           return matchesTracked(item, term);
         });
         var totalFiles = items.reduce(function (sum, item) {
-          return sum + (item.files ? item.files.length : 0);
+          return sum + (item.Files ? item.Files.length : 0);
         }, 0);
         var missing = items.reduce(function (sum, item) {
-          return sum + (item.files || []).filter(function (file) { return !file.exists; }).length;
+          return sum + (item.Files || []).filter(function (file) { return !file.Exists; }).length;
         }, 0);
 
         trackedSummary.textContent = 'Items: ' + items.length
           + ' · Files: ' + totalFiles
           + ' · Missing on disk: ' + missing
-          + ' · Index: ' + formatDate(tracked.loadedAt);
+          + ' · Index: ' + formatDate(tracked.LoadedAt);
 
         if (!items.length) {
           var empty = document.createElement('div');
           empty.className = 'fieldDescription';
-          empty.textContent = tracked.items && tracked.items.length
+          empty.textContent = tracked.Items && tracked.Items.length
             ? 'Nothing found.'
             : 'No tracked files.';
           trackedList.appendChild(empty);
@@ -137,29 +137,29 @@
           details.style.marginBottom = '0.75em';
 
           var summary = document.createElement('summary');
-          var title = item.title || '(untitled)';
-          if (item.year) {
-            title += ' (' + item.year + ')';
+          var title = item.Title || '(untitled)';
+          if (item.Year) {
+            title += ' (' + item.Year + ')';
           }
 
-          var kind = item.type === 'series' ? 'Series' : 'Movie';
-          summary.textContent = kind + ': ' + title + ' — ' + (item.files ? item.files.length : 0) + ' file(s)';
+          var kind = item.Type === 'series' ? 'Series' : 'Movie';
+          summary.textContent = kind + ': ' + title + ' — ' + (item.Files ? item.Files.length : 0) + ' file(s)';
           details.appendChild(summary);
 
           var list = document.createElement('ul');
           list.style.marginTop = '0.5em';
-          (item.files || []).forEach(function (file) {
+          (item.Files || []).forEach(function (file) {
             var li = document.createElement('li');
             li.style.marginBottom = '0.35em';
 
             var path = document.createElement('code');
-            path.textContent = file.path || '';
+            path.textContent = file.Path || '';
             li.appendChild(path);
 
             var hash = document.createElement('div');
             hash.className = 'fieldDescription';
-            hash.textContent = 'hash: ' + (file.hash || '');
-            if (!file.exists) {
+            hash.textContent = 'hash: ' + (file.Hash || '');
+            if (!file.Exists) {
               hash.textContent += ' · file missing';
               hash.style.color = '#cc0000';
             }
