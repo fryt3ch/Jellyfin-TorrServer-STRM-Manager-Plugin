@@ -89,22 +89,40 @@ public sealed class StrmIndex
                 return;
             }
 
-            var items = await ScanAsync(cancellationToken).ConfigureAwait(false);
-            await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                _items = items;
-                _loadedAt = DateTimeOffset.UtcNow;
-                _loaded = true;
-            }
-            finally
-            {
-                _lock.Release();
-            }
+            await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             _loadLock.Release();
+        }
+    }
+
+    public async Task ReloadAsync(CancellationToken cancellationToken)
+    {
+        await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _loadLock.Release();
+        }
+    }
+
+    private async Task LoadCoreAsync(CancellationToken cancellationToken)
+    {
+        var items = await ScanAsync(cancellationToken).ConfigureAwait(false);
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            _items = items;
+            _loadedAt = DateTimeOffset.UtcNow;
+            _loaded = true;
+        }
+        finally
+        {
+            _lock.Release();
         }
     }
 

@@ -5,12 +5,14 @@ namespace Jellyfin.Plugin.TorrServerStrm.Services;
 
 public sealed class StrmIndexStartupService : IHostedService
 {
-    private readonly StrmIndex _index;
+    private readonly StrmMaintenanceService _maintenance;
     private readonly ILogger<StrmIndexStartupService> _logger;
 
-    public StrmIndexStartupService(StrmIndex index, ILogger<StrmIndexStartupService> logger)
+    public StrmIndexStartupService(
+        StrmMaintenanceService maintenance,
+        ILogger<StrmIndexStartupService> logger)
     {
-        _index = index;
+        _maintenance = maintenance;
         _logger = logger;
     }
 
@@ -18,7 +20,7 @@ public sealed class StrmIndexStartupService : IHostedService
     {
         try
         {
-            await _index.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+            await _maintenance.RunAsync(true, null, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -26,7 +28,7 @@ public sealed class StrmIndexStartupService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "TorrServerStrm: не удалось построить индекс .strm при старте");
+            _logger.LogError(ex, "TorrServerStrm: не удалось проверить и починить .strm при старте");
         }
     }
 
