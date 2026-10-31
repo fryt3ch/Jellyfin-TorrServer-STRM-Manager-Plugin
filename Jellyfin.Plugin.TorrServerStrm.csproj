@@ -14,5 +14,6 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\addPage.html" />
   </ItemGroup>
 </Project>

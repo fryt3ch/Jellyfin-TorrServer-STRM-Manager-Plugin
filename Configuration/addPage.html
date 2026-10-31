@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>TorrServer STRM — добавить magnet</title></head>
+<body>
+<div id="TsAddPage" data-role="page" class="page type-interior" data-require="emby-input,emby-button,emby-select">
+  <div data-role="content">
+    <div class="content-primary">
+      <div class="flex align-items-center justify-content-between">
+        <h2>Добавить magnet</h2>
+        <button is="emby-button" type="button" id="BtnOpenSettings" class="raised"><span>Настройки</span></button>
+      </div>
+
+      <form id="TsAddForm">
+        <div class="inputContainer">
+          <input is="emby-input" id="Magnet" type="text" label="Magnet-ссылка" required />
+        </div>
+        <div class="selectContainer">
+          <select is="emby-select" id="AddType" label="Тип">
+            <option value="auto">Определить автоматически</option>
+            <option value="movie">Фильм</option>
+            <option value="series">Сериал</option>
+          </select>
+        </div>
+        <div class="selectContainer">
+          <select is="emby-select" id="LibrarySelect" label="Библиотека"></select>
+          <div class="fieldDescription" id="LibraryHint">Загружаю библиотеки Jellyfin…</div>
+        </div>
+        <div class="inputContainer">
+          <input is="emby-input" id="AddTitle" type="text" label="Название" />
+        </div>
+        <div class="inputContainer">
+          <input is="emby-input" id="AddYear" type="number" label="Год" />
+        </div>
+        <div class="fieldDescription">
+          Название, год, тип и библиотека подставляются автоматически. Проверьте их перед добавлением.
+          Библиотеки фильмов и сериалов другого типа недоступны для выбора.
+          Если оставить название пустым, плагин попробует определить его по файлам TorrServer.
+        </div>
+        <button is="emby-button" type="submit" class="raised button-submit block"><span>Добавить</span></button>
+      </form>
+
+      <div class="fieldDescription" style="margin-top:1em;">
+        Удаляйте фильмы и сериалы обычной кнопкой удаления в Jellyfin. Торрент из TorrServer
+        удалится автоматически, когда на него не останется ссылок в .strm.
+      </div>
+      <pre id="TsResult" style="margin-top:1.5em;white-space:pre-wrap;"></pre>
+    </div>
+  </div>
+  <script type="text/javascript">
+    (function () {
+      var page = document.querySelector('#TsAddPage');
+      page.querySelector('#BtnOpenSettings').addEventListener('click', function () {
+        Dashboard.navigate(Dashboard.getPluginUrl('TorrServerStrm'));
+      });
+
+      var magnet = page.querySelector('#Magnet');
+      var addType = page.querySelector('#AddType');
+      var addTitle = page.querySelector('#AddTitle');
+      var addYear = page.querySelector('#AddYear');
+      var librarySelect = page.querySelector('#LibrarySelect');
+      var libraryHint = page.querySelector('#LibraryHint');
+      var libraries = [];
+      var librariesLoaded = false;
+      var parseTimer = null;
+
+      function primaryTypeFor(type) {
+        return type === 'movie' ? 'movies' : (type === 'series' ? 'tvshows' : null);
+      }
+
+      function fillLibrarySelect() {
+        var type = addType.value;
+        var primary = primaryTypeFor(type);
+        librarySelect.innerHTML = '';
+
+        if (!librariesLoaded) {
+          libraryHint.textContent = 'Загружаю библиотеки Jellyfin…';
+          return;
+        }
+
+        if (!libraries.length) {
+          librarySelect.disabled = true;
+          libraryHint.textContent = 'В Jellyfin не найдено библиотек.';
+          return;
+        }
+
+        var available = [];
+        libraries.forEach(function (lib) {
+          var conflict = primary
+            && lib.type !== primary
+            && (lib.type === 'movies' || lib.type === 'tvshows');
+          var option = document.createElement('option');
+          option.value = lib.path;
+          var text = lib.name + ' — ' + lib.typeLabel + ' — ' + lib.path;
+          if (conflict) {
+            option.disabled = true;
+            text += primary === 'movies' ? ' (недоступно для фильма)' : ' (недоступно для сериала)';
+          } else {
+            available.push(lib);
+          }
+          option.textContent = text;
+          librarySelect.appendChild(option);
+        });
+
+        var target = null;
+        if (primary) {
+          target = available.filter(function (lib) { return lib.type === primary; })[0] || null;
+        }
+        if (!target) {
+          target = available[0] || null;
+        }
+
+        if (target) {
+          librarySelect.value = target.path;
+          librarySelect.disabled = false;
+          libraryHint.textContent = '';
+        } else {
+          librarySelect.disabled = true;
+          libraryHint.textContent = primary === 'movies'
+            ? 'Нет библиотек, доступных для фильмов.'
+            : (primary === 'tvshows' ? 'Нет библиотек, доступных для сериалов.' : 'Нет доступных библиотек.');
+        }
+      }
+
+      function loadLibraries() {
+        if (librariesLoaded) {
+          fillLibrarySelect();
+          return;
+        }
+
+        ApiClient.ajax({
+          type: 'GET',
+          url: ApiClient.getUrl('TorrServerStrm/Libraries'),
+          dataType: 'json'
+        }).then(function (r) {
+          libraries = r || [];
+          librariesLoaded = true;
+          fillLibrarySelect();
+        }).catch(function () {
+          libraries = [];
+          librariesLoaded = true;
+          fillLibrarySelect();
+        });
+      }
+
+      function trackTitleYear(el) {
+        el.addEventListener('input', function () {
+          el.dataset.manual = el.value.trim() ? '1' : '0';
+          if (el === addYear) {
+            el.dataset.auto = '0';
+          }
+        });
+      }
+
+      page.addEventListener('pageshow', loadLibraries);
+      trackTitleYear(addTitle);
+      trackTitleYear(addYear);
+      addType.addEventListener('change', function () {
+        addType.dataset.manual = '1';
+        fillLibrarySelect();
+      });
+
+      magnet.addEventListener('input', function () {
+        var value = magnet.value.trim();
+        clearTimeout(parseTimer);
+        if (value.toLowerCase().indexOf('magnet:?') !== 0) {
+          return;
+        }
+
+        parseTimer = setTimeout(function () {
+          if (magnet.value.trim() !== value) {
+            return;
+          }
+
+          ApiClient.ajax({
+            type: 'POST',
+            url: ApiClient.getUrl('TorrServerStrm/ParseMagnet'),
+            data: JSON.stringify({ Magnet: value }),
+            contentType: 'application/json',
+            dataType: 'json'
+          }).then(function (r) {
+            if (magnet.value.trim() !== value || !r) {
+              return;
+            }
+
+            if (addTitle.dataset.manual !== '1') {
+              addTitle.value = r.title || '';
+            }
+            if (addYear.dataset.manual !== '1') {
+              addYear.value = r.year || '';
+              addYear.dataset.auto = r.year ? '1' : '0';
+            }
+            if (r.title && r.type && addType.dataset.manual !== '1') {
+              var previousType = addType.value;
+              addType.value = r.type;
+              if (previousType !== addType.value) {
+                fillLibrarySelect();
+              }
+            }
+          }).catch(function () {});
+        }, 250);
+      });
+
+      page.querySelector('#TsAddForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var out = page.querySelector('#TsResult');
+        if (!librarySelect.value || librarySelect.disabled) {
+          out.textContent = 'Нет доступной библиотеки для сохранения .strm.';
+          return false;
+        }
+
+        var yr = addYear.value;
+        var body = {
+          Magnet: magnet.value.trim(),
+          Type: addType.value,
+          Title: addTitle.value.trim(),
+          Year: yr ? parseInt(yr, 10) : null,
+          YearAuto: addYear.dataset.auto === '1',
+          LibraryPath: librarySelect.value
+        };
+        out.textContent = 'Получаю метаданные из TorrServer, подождите…';
+        Dashboard.showLoadingMsg();
+        ApiClient.ajax({
+          type: 'POST',
+          url: ApiClient.getUrl('TorrServerStrm/Add'),
+          data: JSON.stringify(body),
+          contentType: 'application/json',
+          dataType: 'json'
+        }).then(function (r) {
+          Dashboard.hideLoadingMsg();
+          var name = r.title || 'без названия';
+          if (r.year) {
+            name += ' (' + r.year + ')';
+          }
+          var kind = r.type === 'series' ? 'сериал' : 'фильм';
+          var lines = ['Готово: ' + name + ' [' + kind + ']'];
+          if (r.libraryPath) {
+            lines.push('Библиотека: ' + r.libraryPath);
+          }
+          lines.push('Создано файлов: ' + r.files.length);
+          out.textContent = lines.join('\n') + '\n' + r.files.join('\n');
+        }).catch(function (err) {
+          Dashboard.hideLoadingMsg();
+          if (err && err.json) {
+            err.json().then(function (j) { out.textContent = 'Ошибка: ' + (j.error || JSON.stringify(j)); });
+          } else {
+            out.textContent = 'Ошибка запроса';
+          }
+        });
+        return false;
+      });
+    })();
+  </script>
+</div>
+</body>
+</html>
