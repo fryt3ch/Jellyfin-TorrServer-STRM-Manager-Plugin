@@ -55,19 +55,19 @@ public sealed class TorrentCleanupService
                 {
                     await client.RemoveAsync(hash, CancellationToken.None).ConfigureAwait(false);
                     _logger.LogInformation(
-                        "TorrServerStrm: торрент {Hash} удалён после удаления {Path}",
+                        "TorrServerStrm: torrent {Hash} removed after deleting {Path}",
                         hash,
                         path);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "TorrServerStrm: не удалось удалить торрент {Hash}", hash);
+                    _logger.LogWarning(ex, "TorrServerStrm: failed to remove torrent {Hash}", hash);
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "TorrServerStrm: ошибка очистки после удаления {Path}", path);
+            _logger.LogWarning(ex, "TorrServerStrm: cleanup error after deleting {Path}", path);
         }
     }
 }

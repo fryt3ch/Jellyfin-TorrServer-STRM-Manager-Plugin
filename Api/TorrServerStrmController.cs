@@ -92,7 +92,7 @@ public class TorrServerStrmController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.Magnet)
             || !req.Magnet.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { error = "Нужна magnet-ссылка." });
+            return BadRequest(new { error = "A magnet link is required." });
 
         var parsed = TitleParser.ParseMagnet(req.Magnet);
         return Ok(new { title = parsed.Title, year = parsed.Year, type = parsed.Type });
@@ -105,11 +105,11 @@ public class TorrServerStrmController : ControllerBase
 
         if (string.IsNullOrWhiteSpace(req.Magnet)
             || !req.Magnet.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { error = "Нужна magnet-ссылка." });
+            return BadRequest(new { error = "A magnet link is required." });
 
         var requestedType = string.IsNullOrWhiteSpace(req.Type) ? "movie" : req.Type;
         if (requestedType != "movie" && requestedType != "series")
-            return BadRequest(new { error = "Тип: movie или series." });
+            return BadRequest(new { error = "Type must be movie or series." });
 
         TorrServerClient? client = null;
         TorrentInfo? torrent = null;
@@ -151,7 +151,7 @@ public class TorrServerStrmController : ControllerBase
 
             if (string.IsNullOrWhiteSpace(title))
             {
-                throw new InvalidOperationException("Не удалось определить название. Укажите название вручную.");
+                throw new InvalidOperationException("Could not determine the title. Enter the title manually.");
             }
 
             var includeSeriesYear = resolvedType == "series" && manualYear;
@@ -179,11 +179,11 @@ public class TorrServerStrmController : ControllerBase
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "TorrServerStrm: не удалось удалить устаревший торрент {Hash}", hash);
+                    _logger.LogWarning(ex, "TorrServerStrm: failed to remove obsolete torrent {Hash}", hash);
                 }
             }
 
-            _logger.LogInformation("TorrServerStrm: создано {Count} .strm для {Title}", written.Files.Count, title);
+            _logger.LogInformation("TorrServerStrm: created {Count} .strm file(s) for {Title}", written.Files.Count, title);
 
             if (cfg.ScanAfterAdd)
             {
@@ -193,7 +193,7 @@ public class TorrServerStrmController : ControllerBase
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Не удалось запустить сканирование библиотеки");
+                    _logger.LogWarning(ex, "Failed to start a library scan");
                 }
             }
 
@@ -224,11 +224,11 @@ public class TorrServerStrmController : ControllerBase
                 }
                 catch (Exception cleanupEx)
                 {
-                    _logger.LogWarning(cleanupEx, "TorrServerStrm: не удалось откатить торрент {Hash}", torrent.Hash);
+                    _logger.LogWarning(cleanupEx, "TorrServerStrm: failed to roll back torrent {Hash}", torrent.Hash);
                 }
             }
 
-            _logger.LogError(ex, "TorrServerStrm: ошибка добавления");
+            _logger.LogError(ex, "TorrServerStrm: add failed");
             return StatusCode(500, new { error = ex.Message });
         }
     }

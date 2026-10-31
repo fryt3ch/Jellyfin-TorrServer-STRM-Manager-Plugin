@@ -43,10 +43,10 @@ public class TorrServerClient
         var info = await PostAsync(new { action = "add", link = magnet, title = title ?? string.Empty, poster = "", data = "", save_to_db = true }, ct);
         if (string.IsNullOrWhiteSpace(info.Hash))
         {
-            throw new InvalidOperationException("TorrServer не вернул hash торрента.");
+            throw new InvalidOperationException("TorrServer did not return the torrent hash.");
         }
 
-        // метаданные могут подтянуться не сразу — подождём до ~60 сек
+        // metadata may not be available immediately; wait up to ~60 seconds
         for (var i = 0; i < 30 && (info.FileStats == null || info.FileStats.Count == 0); i++)
         {
             await Task.Delay(2000, ct);
@@ -55,7 +55,7 @@ public class TorrServerClient
 
         if (info.FileStats == null || info.FileStats.Count == 0)
         {
-            throw new InvalidOperationException("TorrServer не вернул список файлов (метаданные не получены).");
+            throw new InvalidOperationException("TorrServer did not return the file list (metadata was not received).");
         }
 
         return info;
@@ -65,7 +65,7 @@ public class TorrServerClient
     {
         if (string.IsNullOrWhiteSpace(hash))
         {
-            throw new ArgumentException("Не указан hash торрента.", nameof(hash));
+            throw new ArgumentException("Torrent hash is not specified.", nameof(hash));
         }
 
         using var resp = await _http.PostAsJsonAsync($"{_baseUrl}/torrents", new { action = "rem", hash }, ct);
@@ -121,7 +121,7 @@ public class TorrServerClient
     {
         if (string.IsNullOrWhiteSpace(hash))
         {
-            throw new ArgumentException("Не указан hash торрента.", nameof(hash));
+            throw new ArgumentException("Torrent hash is not specified.", nameof(hash));
         }
 
         var info = await PostAsync(
@@ -129,7 +129,7 @@ public class TorrServerClient
             ct).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(info.Hash))
         {
-            throw new InvalidOperationException("TorrServer не вернул hash торрента.");
+            throw new InvalidOperationException("TorrServer did not return the torrent hash.");
         }
     }
 
@@ -144,7 +144,7 @@ public class TorrServerClient
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            throw new InvalidOperationException("Пустой ответ от TorrServer.");
+            throw new InvalidOperationException("Empty response from TorrServer.");
         }
 
         using var doc = JsonDocument.Parse(text);
@@ -155,6 +155,6 @@ public class TorrServerClient
 
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         var info = JsonSerializer.Deserialize<TorrentInfo>(text, options);
-        return info ?? throw new InvalidOperationException("Пустой ответ от TorrServer.");
+        return info ?? throw new InvalidOperationException("Empty response from TorrServer.");
     }
 }

@@ -230,7 +230,7 @@ public sealed class StrmIndex
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Не удалось прочитать .strm: {Path}", file.Path);
+                        _logger.LogWarning(ex, "Failed to read .strm: {Path}", file.Path);
                         continue;
                     }
 
@@ -254,7 +254,7 @@ public sealed class StrmIndex
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Не удалось обновить .strm: {Path}", file.Path);
+                        _logger.LogWarning(ex, "Failed to update .strm: {Path}", file.Path);
                     }
                 }
             }
@@ -337,7 +337,7 @@ public sealed class StrmIndex
         {
             if (!Directory.Exists(library.Path))
             {
-                _logger.LogWarning("TorrServerStrm: папка библиотеки недоступна: {Path}", library.Path);
+                _logger.LogWarning("TorrServerStrm: library folder is unavailable: {Path}", library.Path);
                 continue;
             }
 
@@ -358,7 +358,7 @@ public sealed class StrmIndex
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "TorrServerStrm: не удалось прочитать .strm {Path}", file);
+                        _logger.LogWarning(ex, "TorrServerStrm: failed to read .strm {Path}", file);
                         continue;
                     }
 
@@ -397,12 +397,12 @@ public sealed class StrmIndex
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "TorrServerStrm: ошибка сканирования библиотеки {Path}", library.Path);
+                _logger.LogWarning(ex, "TorrServerStrm: error scanning library {Path}", library.Path);
             }
         }
 
         _logger.LogInformation(
-            "TorrServerStrm: проиндексировано {Scanned} .strm, найдено {Found}, библиотек {Libraries}",
+            "TorrServerStrm: indexed {Scanned} .strm files, found {Found}, libraries {Libraries}",
             scanned,
             found,
             libraries.Count);

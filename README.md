@@ -1,74 +1,73 @@
 # Jellyfin.Plugin.TorrServerStrm
 
-## Сборка
+## Build
     dotnet publish -c Release -o out
 
-## Установка
-Скопируйте `out/Jellyfin.Plugin.TorrServerStrm.dll` в папку плагинов Jellyfin:
+## Installation
+Copy `out/Jellyfin.Plugin.TorrServerStrm.dll` into the Jellyfin plugins folder:
     /var/lib/jellyfin/plugins/TorrServerStrm_1.0.0.0/
-(Docker: `/config/plugins/TorrServerStrm_1.0.0.0/`), перезапустите Jellyfin.
+(Docker: `/config/plugins/TorrServerStrm_1.0.0.0/`), then restart Jellyfin.
 
-## Использование
-1. Панель управления → Плагины → TorrServer STRM Manager → Настройки: укажите URL TorrServer.
+## Usage
+1. Dashboard → Plugins → TorrServer STRM Manager → Settings: set the TorrServer URL.
 
-   Адресов два:
-   - **Адрес TorrServer API (из Jellyfin)** — используется сервером Jellyfin для добавления
-     и удаления торрентов. Должен быть доступен из контейнера/процесса Jellyfin
-     (например, `http://torrserver:8090` в Docker).
-   - **Адрес для плееров (в .strm, необязательно)** — записывается в `.strm` и открывается
-     клиентами (ТВ, телефон, браузер). Должен быть доступен с этих устройств
-     (например, `http://192.168.1.10:8090`). Если пусто — используется адрес API.
+   There are two URLs:
+   - **TorrServer API URL (from Jellyfin)** — used by the Jellyfin server to add
+     and remove torrents. It must be reachable from the Jellyfin container/process
+     (for example, `http://torrserver:8090` in Docker).
+   - **Player URL (in .strm, optional)** — written to `.strm` files and opened by
+     clients (TV, phone, browser). It must be reachable from those devices
+     (for example, `http://192.168.1.10:8090`). If empty, the API URL is used.
 
-   Если Jellyfin и клиенты видят TorrServer по одному адресу, второй можно оставить пустым.
-   При смене адреса и сохранении настроек существующие `.strm` обновляются автоматически.
-2. Откройте пункт бокового меню «Import .magnet link» (или кнопку «Настройки» на странице
-   добавления, если нужно вернуться к конфигурации). Вставьте magnet-ссылку и нажмите «Добавить».
-   Название, год, тип и библиотека подставятся автоматически из magnet (`dn`). По умолчанию
-   выбран «Фильм»; при вставке magnet тип заменяется на определённый автоматически.
-   Значения можно исправить перед добавлением. Если оставить название пустым, плагин попробует
-   определить его по данным TorrServer и именам файлов.
+   If Jellyfin and the clients reach TorrServer at the same address, the second URL can be left empty.
+   When the address changes and settings are saved, existing `.strm` files are updated automatically.
+2. Open the "Import .magnet link" sidebar item (or the "Settings" button on the add page
+   if you need to return to the configuration). Paste a magnet link and click "Add".
+   Title, year, type, and library are filled in automatically from the magnet (`dn`). "Movie" is
+   selected by default; when a magnet is pasted, the type is replaced with the detected one.
+   You can correct the values before adding. If the title is left empty, the plugin will try
+   to determine it from TorrServer data and file names.
 
-   Список библиотек загружается из Jellyfin. Каждая папка библиотеки — отдельный пункт.
-   Библиотеки типа «Фильмы» и «Сериалы» недоступны, если тип magnet другой (например, нельзя
-   добавить фильм в библиотеку сериалов). Библиотеки остальных типов выбирать можно.
-   По умолчанию выбирается первая подходящая библиотека, иначе первая доступная.
-3. Сериалы раскладываются как `Series/<Show>/Season <NN>/<Show> S<NN>E<NN>.strm`.
+   The library list is loaded from Jellyfin. Each library folder is a separate item.
+   "Movies" and "Series" libraries are unavailable when the magnet type is different (for example,
+   you cannot add a movie to a series library). Libraries of other types can be selected.
+   By default, the first suitable library is selected, otherwise the first available one.
+3. Series are laid out as `Series/<Show>/Season <NN>/<Show> S<NN>E<NN>.strm`.
 
-## Удаление
-Удаляйте фильмы, сериалы, сезоны и эпизоды штатной кнопкой Jellyfin. Jellyfin удалит `.strm`
-и папку с медиа, а плагин автоматически уберёт связанный торрент из TorrServer.
+## Removal
+Delete movies, series, seasons, and episodes with the standard Jellyfin delete button. Jellyfin deletes
+the `.strm` file and the media folder, and the plugin automatically removes the related torrent from TorrServer.
 
-Чтобы кнопка удаления появилась, включите пользователю право на удаление:
-Панель управления → Пользователи → пользователь → «Разрешить удаление медиа» → «Все библиотеки».
+To make the delete button appear, grant the user permission to delete:
+Dashboard → Users → user → "Allow media deletion" → "All libraries".
 
-Если торрент используется несколькими `.strm` (например, один торрент на все сезоны),
-он будет удалён только после удаления последнего связанного файла.
+If a torrent is used by multiple `.strm` files (for example, one torrent for all seasons),
+it is removed only after the last related file is deleted.
 
-## Индекс `.strm` и авто-починка
+## `.strm` index and auto-repair
 
-Плагин не хранит отдельный `library.json`. Индекс в памяти строится по существующим
-`.strm` файлам, в которых есть `/stream/`, а в параметрах ссылки — `link`, `index` и `play`.
+The plugin does not keep a separate `library.json`. The in-memory index is built from existing
+`.strm` files that contain `/stream/` and have `link`, `index`, and `play` in the link parameters.
 
-Индекс пересобирается при старте Jellyfin и после каждого сканирования библиотеки
-(ручного и по расписанию). В обеих точках плагин:
+The index is rebuilt at Jellyfin startup and after every library scan
+(manual or scheduled). At both points the plugin:
 
-1. Исправляет адрес в `.strm`, если он не совпадает с адресом из настроек
-   (`Адрес для плееров`, иначе `Адрес TorrServer API`). Меняется только префикс до `/stream/`,
-   параметры `link`, `index`, `play` и имя файла сохраняются.
-2. Сверяет hash торрентов с TorrServer и повторно добавляет отсутствующие
-   (`POST /torrents` с `action=list`, затем `action=add` по infohash).
-   Метаданные TorrServer получает сам; трекеры применяются по его настройке Retrackers.
+1. Fixes the address in `.strm` files when it does not match the address from settings
+   (`Player URL`, otherwise `TorrServer API URL`). Only the prefix up to `/stream/` is changed;
+   the `link`, `index`, and `play` parameters and the file name are preserved.
+2. Compares torrent hashes with TorrServer and re-adds missing ones
+   (`POST /torrents` with `action=list`, then `action=add` by infohash).
+   TorrServer fetches the metadata itself; trackers are applied according to its Retrackers setting.
 
-Если TorrServer недоступен, плагин пишет предупреждение в лог, а запуск Jellyfin
-и сканирование библиотеки продолжаются. Файлы `.strm` без `/stream/`, `link`, `index`
-или `play` не индексируются и не изменяются.
+If TorrServer is unavailable, the plugin writes a warning to the log, and Jellyfin startup
+and the library scan continue. `.strm` files without `/stream/`, `link`, `index`,
+or `play` are not indexed and are not modified.
 
-Старые файлы `library.json`, оставшиеся от предыдущих версий, больше не используются
-и их можно удалить.
+Old `library.json` files left by previous versions are no longer used and can be deleted.
 
-## Отслеживаемые файлы
+## Tracked files
 
-На странице настроек плагина есть блок **«Отслеживаемые файлы»**. Он показывает текущий
-индекс: фильмы и сериалы, сгруппированные по названиям, со списком `.strm`, путями и hash.
-Для каждого файла отображается, существует ли он на диске. Есть поиск по названию,
-пути и hash и кнопка «Обновить».
+The plugin settings page has a **Tracked files** section. It shows the current
+index: movies and series grouped by title, with a list of `.strm` files, paths, and hashes.
+For each file it shows whether the file exists on disk. There is a search by title,
+path, and hash, and a **Refresh** button.

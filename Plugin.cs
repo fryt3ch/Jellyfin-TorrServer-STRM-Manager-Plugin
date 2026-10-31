@@ -37,7 +37,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     public override Guid Id => Guid.Parse("7c1f3a52-9d4e-4b8a-a6f1-2e5b8c9d0f13");
 
-    public override string Description => "Добавление magnet-ссылок через TorrServer как .strm файлов";
+    public override string Description => "Add magnet links via TorrServer as .strm files";
 
     public override void UpdateConfiguration(BasePluginConfiguration configuration)
     {
@@ -59,7 +59,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "TorrServerStrm: не удалось обновить адреса в существующих .strm");
+                _logger.LogWarning(ex, "TorrServerStrm: failed to update addresses in existing .strm files");
             }
         });
     }
@@ -83,10 +83,10 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             MenuIcon = "cloud_download"
         };
 
-        // Jellyfin 10.10 выбирает страницу настроек плагина как первую страницу
-        // с EnableInMainMenu = true, а в боковое меню попадают все такие страницы.
-        // Чтобы настройки не были видны в меню, но открывались из карточки плагина,
-        // отдаём разные наборы страниц в зависимости от запроса.
+        // Jellyfin 10.10 selects the plugin settings page as the first page
+        // with EnableInMainMenu = true, and all such pages appear in the side menu.
+        // To keep settings out of the menu but still open them from the plugin card,
+        // return different page sets depending on the request.
         var context = _httpContextAccessor.HttpContext;
         if (context is null)
         {

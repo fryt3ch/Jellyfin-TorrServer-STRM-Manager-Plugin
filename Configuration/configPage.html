@@ -7,34 +7,34 @@
     <div class="content-primary">
       <h2>TorrServer STRM Manager</h2>
 
-      <h3>Настройки</h3>
+      <h3>Settings</h3>
       <form id="TsCfgForm">
         <div class="inputContainer">
-          <input is="emby-input" id="TorrServerUrl" type="text" label="Адрес TorrServer API (из Jellyfin)" />
-          <div class="fieldDescription">Должен быть доступен с сервера Jellyfin (в Docker — имя контейнера). Например http://torrserver:8090</div>
+          <input is="emby-input" id="TorrServerUrl" type="text" label="TorrServer API URL (from Jellyfin)" />
+          <div class="fieldDescription">Must be reachable from the Jellyfin server (in Docker, the container name). For example http://torrserver:8090</div>
         </div>
         <div class="inputContainer">
-          <input is="emby-input" id="StreamBaseUrl" type="text" label="Адрес для плееров (в .strm, необязательно)" />
-          <div class="fieldDescription">Доступен с клиентов (ТВ, телефон). Пусто = адрес API. Например http://192.168.1.10:8090</div>
+          <input is="emby-input" id="StreamBaseUrl" type="text" label="Player URL (in .strm, optional)" />
+          <div class="fieldDescription">Reachable from clients (TV, phone). Empty = API URL. For example http://192.168.1.10:8090</div>
         </div>
-        <div class="inputContainer"><input is="emby-input" id="Username" type="text" label="Логин (если включена авторизация)" /></div>
-        <div class="inputContainer"><input is="emby-input" id="Password" type="password" label="Пароль" /></div>
+        <div class="inputContainer"><input is="emby-input" id="Username" type="text" label="Username (if authentication is enabled)" /></div>
+        <div class="inputContainer"><input is="emby-input" id="Password" type="password" label="Password" /></div>
         <label class="checkboxContainer">
           <input is="emby-checkbox" type="checkbox" id="ScanAfterAdd" />
-          <span>Сканировать библиотеки после добавления</span>
+          <span>Scan libraries after adding</span>
         </label>
         <br />
-        <button is="emby-button" type="submit" class="raised button-submit block"><span>Сохранить настройки</span></button>
+        <button is="emby-button" type="submit" class="raised button-submit block"><span>Save settings</span></button>
       </form>
 
       <hr />
 
-      <h3>Отслеживаемые файлы</h3>
-      <div class="fieldDescription" id="TrackedSummary">Загружаю индекс…</div>
+      <h3>Tracked files</h3>
+      <div class="fieldDescription" id="TrackedSummary">Loading index…</div>
       <div class="inputContainer">
-        <input is="emby-input" id="TrackedSearch" type="text" label="Поиск по названию, пути или hash" />
+        <input is="emby-input" id="TrackedSearch" type="text" label="Search by title, path, or hash" />
       </div>
-      <button is="emby-button" type="button" id="BtnTrackedRefresh" class="raised"><span>Обновить</span></button>
+      <button is="emby-button" type="button" id="BtnTrackedRefresh" class="raised"><span>Refresh</span></button>
       <div id="TrackedList" style="margin-top:1em;"></div>
     </div>
   </div>
@@ -117,17 +117,17 @@
           return sum + (item.files || []).filter(function (file) { return !file.exists; }).length;
         }, 0);
 
-        trackedSummary.textContent = 'Элементов: ' + items.length
-          + ' · Файлов: ' + totalFiles
-          + ' · Нет на диске: ' + missing
-          + ' · Индекс: ' + formatDate(tracked.loadedAt);
+        trackedSummary.textContent = 'Items: ' + items.length
+          + ' · Files: ' + totalFiles
+          + ' · Missing on disk: ' + missing
+          + ' · Index: ' + formatDate(tracked.loadedAt);
 
         if (!items.length) {
           var empty = document.createElement('div');
           empty.className = 'fieldDescription';
           empty.textContent = tracked.items && tracked.items.length
-            ? 'Ничего не найдено.'
-            : 'Отслеживаемых файлов нет.';
+            ? 'Nothing found.'
+            : 'No tracked files.';
           trackedList.appendChild(empty);
           return;
         }
@@ -137,13 +137,13 @@
           details.style.marginBottom = '0.75em';
 
           var summary = document.createElement('summary');
-          var title = item.title || '(без названия)';
+          var title = item.title || '(untitled)';
           if (item.year) {
             title += ' (' + item.year + ')';
           }
 
-          var kind = item.type === 'series' ? 'Сериал' : 'Фильм';
-          summary.textContent = kind + ': ' + title + ' — ' + (item.files ? item.files.length : 0) + ' файл(ов)';
+          var kind = item.type === 'series' ? 'Series' : 'Movie';
+          summary.textContent = kind + ': ' + title + ' — ' + (item.files ? item.files.length : 0) + ' file(s)';
           details.appendChild(summary);
 
           var list = document.createElement('ul');
@@ -160,7 +160,7 @@
             hash.className = 'fieldDescription';
             hash.textContent = 'hash: ' + (file.hash || '');
             if (!file.exists) {
-              hash.textContent += ' · файл отсутствует';
+              hash.textContent += ' · file missing';
               hash.style.color = '#cc0000';
             }
 
@@ -174,7 +174,7 @@
       }
 
       function loadTracked() {
-        trackedSummary.textContent = 'Загружаю индекс…';
+        trackedSummary.textContent = 'Loading index…';
         trackedList.textContent = '';
         ApiClient.ajax({
           type: 'GET',
@@ -185,7 +185,7 @@
           renderTracked();
         }).catch(function () {
           tracked = null;
-          trackedSummary.textContent = 'Не удалось загрузить список отслеживаемых файлов.';
+          trackedSummary.textContent = 'Failed to load the tracked files list.';
         });
       }
 

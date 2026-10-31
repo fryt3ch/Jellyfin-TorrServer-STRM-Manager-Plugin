@@ -45,7 +45,7 @@ public sealed class StrmMaintenanceService
                     if (updated > 0)
                     {
                         _logger.LogInformation(
-                            "TorrServerStrm: исправлено {Count} адресов в .strm",
+                            "TorrServerStrm: fixed {Count} .strm addresses",
                             updated);
                     }
                 }

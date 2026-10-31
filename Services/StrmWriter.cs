@@ -45,7 +45,7 @@ public static class StrmWriter
         var videos = (torrent.FileStats ?? new()).Where(f => VideoExt.Contains(System.IO.Path.GetExtension(f.Path))).ToList();
         if (videos.Count == 0)
         {
-            throw new InvalidOperationException("В торренте нет видеофайлов.");
+            throw new InvalidOperationException("The torrent contains no video files.");
         }
 
         var baseUrl = ResolveBaseUrl(cfg);
@@ -58,7 +58,7 @@ public static class StrmWriter
             var name = Sanitize(withYear);
             if (string.IsNullOrWhiteSpace(name))
             {
-                throw new InvalidOperationException("Название содержит только недопустимые символы.");
+                throw new InvalidOperationException("The title contains only invalid characters.");
             }
 
             var dir = SafeCombine(safeLibraryRoot, name);
@@ -86,7 +86,7 @@ public static class StrmWriter
         var show = Sanitize(withSeriesYear);
         if (string.IsNullOrWhiteSpace(show))
         {
-            throw new InvalidOperationException("Название содержит только недопустимые символы.");
+            throw new InvalidOperationException("The title contains only invalid characters.");
         }
 
         var root = SafeCombine(safeLibraryRoot, show);
@@ -226,7 +226,7 @@ public static class StrmWriter
     {
         if (string.IsNullOrWhiteSpace(libraryRoot))
         {
-            throw new InvalidOperationException("Не задана папка библиотеки.");
+            throw new InvalidOperationException("Library folder is not specified.");
         }
 
         var root = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(libraryRoot));
@@ -234,7 +234,7 @@ public static class StrmWriter
         if (string.Equals(path, root, Comparison)
             || !path.StartsWith(root + System.IO.Path.DirectorySeparatorChar, Comparison))
         {
-            throw new InvalidOperationException("Недопустимый путь библиотеки.");
+            throw new InvalidOperationException("Invalid library path.");
         }
 
         return path;

@@ -17,7 +17,7 @@ public sealed class StrmUrlRewriter
     {
         var updated = await _index.RewriteStreamUrlsAsync(newBaseUrl, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "TorrServerStrm: обновлено {Count} .strm на адрес {BaseUrl}",
+            "TorrServerStrm: updated {Count} .strm files to {BaseUrl}",
             updated,
             newBaseUrl);
         return updated;

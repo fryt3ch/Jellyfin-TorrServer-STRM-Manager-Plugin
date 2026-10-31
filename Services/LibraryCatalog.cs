@@ -58,7 +58,7 @@ public sealed class LibraryCatalog
         var libraries = GetLocations();
         if (libraries.Count == 0)
         {
-            throw new InvalidOperationException("В Jellyfin не найдено ни одной библиотеки.");
+            throw new InvalidOperationException("No libraries found in Jellyfin.");
         }
 
         var primaryType = resolvedType == "series" ? "tvshows" : "movies";
@@ -67,8 +67,8 @@ public sealed class LibraryCatalog
             .ToList();
         if (available.Count == 0)
         {
-            var typeName = resolvedType == "series" ? "Сериалы" : "Фильмы";
-            throw new InvalidOperationException($"Нет библиотек, доступных для типа «{typeName}».");
+            var typeName = resolvedType == "series" ? "Series" : "Movies";
+            throw new InvalidOperationException($"No libraries available for type \"{typeName}\".");
         }
 
         if (!string.IsNullOrWhiteSpace(requestedPath))
@@ -117,15 +117,15 @@ public sealed class LibraryCatalog
     {
         return collectionType switch
         {
-            CollectionTypeOptions.movies => "Фильмы",
-            CollectionTypeOptions.tvshows => "Сериалы",
-            CollectionTypeOptions.music => "Музыка",
-            CollectionTypeOptions.musicvideos => "Клипы",
-            CollectionTypeOptions.homevideos => "Домашние видео",
-            CollectionTypeOptions.boxsets => "Коллекции",
-            CollectionTypeOptions.books => "Книги",
-            CollectionTypeOptions.mixed => "Смешанное",
-            _ => "Без типа"
+            CollectionTypeOptions.movies => "Movies",
+            CollectionTypeOptions.tvshows => "Series",
+            CollectionTypeOptions.music => "Music",
+            CollectionTypeOptions.musicvideos => "Music videos",
+            CollectionTypeOptions.homevideos => "Home videos",
+            CollectionTypeOptions.boxsets => "Collections",
+            CollectionTypeOptions.books => "Books",
+            CollectionTypeOptions.mixed => "Mixed",
+            _ => "No type"
         };
     }
 }

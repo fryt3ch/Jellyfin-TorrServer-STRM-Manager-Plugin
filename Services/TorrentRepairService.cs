@@ -34,7 +34,7 @@ public sealed class TorrentRepairService
         var cfg = Plugin.Instance?.Configuration;
         if (cfg is null)
         {
-            _logger.LogWarning("TorrServerStrm: конфигурация плагина недоступна, проверка торрентов пропущена");
+            _logger.LogWarning("TorrServerStrm: plugin configuration is unavailable, torrent check skipped");
             return;
         }
 
@@ -49,13 +49,13 @@ public sealed class TorrentRepairService
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogWarning(
-                "TorrServerStrm: TorrServer не ответил за {Seconds} с, проверка торрентов пропущена",
+                "TorrServerStrm: TorrServer did not respond within {Seconds} s, torrent check skipped",
                 ListTimeout.TotalSeconds);
             return;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "TorrServerStrm: не удалось получить список торрентов TorrServer");
+            _logger.LogWarning(ex, "TorrServerStrm: failed to get the TorrServer torrent list");
             return;
         }
 
@@ -63,13 +63,13 @@ public sealed class TorrentRepairService
         if (missing.Count == 0)
         {
             _logger.LogInformation(
-                "TorrServerStrm: проверено {Count} hash, отсутствующих торрентов нет",
+                "TorrServerStrm: checked {Count} hashes, no missing torrents",
                 known.Count);
             return;
         }
 
         _logger.LogInformation(
-            "TorrServerStrm: найдено {Count} hash, отсутствующих в TorrServer",
+            "TorrServerStrm: found {Count} hashes missing from TorrServer",
             missing.Count);
 
         var added = 0;
@@ -84,7 +84,7 @@ public sealed class TorrentRepairService
                 using var cts = CreateTimeout(cancellationToken, AddTimeout);
                 await client.AddByHashAsync(kv.Key, kv.Value, cts.Token).ConfigureAwait(false);
                 Interlocked.Increment(ref added);
-                _logger.LogInformation("TorrServerStrm: торрент {Hash} добавлен в TorrServer", kv.Key);
+                _logger.LogInformation("TorrServerStrm: torrent {Hash} added to TorrServer", kv.Key);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -93,7 +93,7 @@ public sealed class TorrentRepairService
             catch (Exception ex)
             {
                 Interlocked.Increment(ref failed);
-                _logger.LogWarning(ex, "TorrServerStrm: не удалось добавить торрент {Hash}", kv.Key);
+                _logger.LogWarning(ex, "TorrServerStrm: failed to add torrent {Hash}", kv.Key);
             }
             finally
             {
@@ -104,7 +104,7 @@ public sealed class TorrentRepairService
         await Task.WhenAll(tasks).ConfigureAwait(false);
 
         _logger.LogInformation(
-            "TorrServerStrm: проверка торрентов завершена, добавлено {Added}, ошибок {Failed}",
+            "TorrServerStrm: torrent check complete, added {Added}, failed {Failed}",
             added,
             failed);
     }

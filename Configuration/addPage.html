@@ -1,46 +1,46 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>TorrServer STRM — добавить magnet</title></head>
+<head><meta charset="utf-8"><title>TorrServer STRM — Add magnet</title></head>
 <body>
 <div id="TsAddPage" data-role="page" class="page type-interior" data-require="emby-input,emby-button,emby-select">
   <div data-role="content">
     <div class="content-primary">
       <div class="flex align-items-center justify-content-between">
-        <h2>Добавить magnet</h2>
-        <button is="emby-button" type="button" id="BtnOpenSettings" class="raised"><span>Настройки</span></button>
+        <h2>Add magnet</h2>
+        <button is="emby-button" type="button" id="BtnOpenSettings" class="raised"><span>Settings</span></button>
       </div>
 
       <form id="TsAddForm">
         <div class="inputContainer">
-          <input is="emby-input" id="Magnet" type="text" label="Magnet-ссылка" required />
+          <input is="emby-input" id="Magnet" type="text" label="Magnet link" required />
         </div>
         <div class="selectContainer">
-          <select is="emby-select" id="AddType" label="Тип">
-            <option value="movie" selected>Фильм</option>
-            <option value="series">Сериал</option>
+          <select is="emby-select" id="AddType" label="Type">
+            <option value="movie" selected>Movie</option>
+            <option value="series">Series</option>
           </select>
         </div>
         <div class="selectContainer">
-          <select is="emby-select" id="LibrarySelect" label="Библиотека"></select>
-          <div class="fieldDescription" id="LibraryHint">Загружаю библиотеки Jellyfin…</div>
+          <select is="emby-select" id="LibrarySelect" label="Library"></select>
+          <div class="fieldDescription" id="LibraryHint">Loading Jellyfin libraries…</div>
         </div>
         <div class="inputContainer">
-          <input is="emby-input" id="AddTitle" type="text" label="Название" />
+          <input is="emby-input" id="AddTitle" type="text" label="Title" />
         </div>
         <div class="inputContainer">
-          <input is="emby-input" id="AddYear" type="number" label="Год" />
+          <input is="emby-input" id="AddYear" type="number" label="Year" />
         </div>
         <div class="fieldDescription">
-          Название, год, тип и библиотека подставляются автоматически из magnet. По умолчанию выбран фильм.
-          Проверьте значения перед добавлением. Библиотеки фильмов и сериалов другого типа недоступны для выбора.
-          Если оставить название пустым, плагин попробует определить его по файлам TorrServer.
+          Title, year, type, and library are filled in automatically from the magnet. Movie is selected by default.
+          Review the values before adding. Movie and series libraries of the other type are not available for selection.
+          If the title is left empty, the plugin will try to determine it from TorrServer files.
         </div>
-        <button is="emby-button" type="submit" class="raised button-submit block"><span>Добавить</span></button>
+        <button is="emby-button" type="submit" class="raised button-submit block"><span>Add</span></button>
       </form>
 
       <div class="fieldDescription" style="margin-top:1em;">
-        Удаляйте фильмы и сериалы обычной кнопкой удаления в Jellyfin. Торрент из TorrServer
-        удалится автоматически, когда на него не останется ссылок в .strm.
+        Delete movies and series with the usual Jellyfin delete button. The torrent is removed from TorrServer
+        automatically when no .strm files reference it.
       </div>
       <pre id="TsResult" style="margin-top:1.5em;white-space:pre-wrap;"></pre>
     </div>
@@ -72,13 +72,13 @@
         librarySelect.innerHTML = '';
 
         if (!librariesLoaded) {
-          libraryHint.textContent = 'Загружаю библиотеки Jellyfin…';
+          libraryHint.textContent = 'Loading Jellyfin libraries…';
           return;
         }
 
         if (!libraries.length) {
           librarySelect.disabled = true;
-          libraryHint.textContent = 'В Jellyfin не найдено библиотек.';
+          libraryHint.textContent = 'No libraries found in Jellyfin.';
           return;
         }
 
@@ -92,7 +92,7 @@
           var text = lib.name + ' — ' + lib.typeLabel + ' — ' + lib.path;
           if (conflict) {
             option.disabled = true;
-            text += primary === 'movies' ? ' (недоступно для фильма)' : ' (недоступно для сериала)';
+            text += primary === 'movies' ? ' (not available for movies)' : ' (not available for series)';
           } else {
             available.push(lib);
           }
@@ -115,8 +115,8 @@
         } else {
           librarySelect.disabled = true;
           libraryHint.textContent = primary === 'movies'
-            ? 'Нет библиотек, доступных для фильмов.'
-            : (primary === 'tvshows' ? 'Нет библиотек, доступных для сериалов.' : 'Нет доступных библиотек.');
+            ? 'No libraries available for movies.'
+            : (primary === 'tvshows' ? 'No libraries available for series.' : 'No libraries available.');
         }
       }
 
@@ -202,7 +202,7 @@
         e.preventDefault();
         var out = page.querySelector('#TsResult');
         if (!librarySelect.value || librarySelect.disabled) {
-          out.textContent = 'Нет доступной библиотеки для сохранения .strm.';
+          out.textContent = 'No library available to save .strm files.';
           return false;
         }
 
@@ -215,7 +215,7 @@
           YearAuto: addYear.dataset.auto === '1',
           LibraryPath: librarySelect.value
         };
-        out.textContent = 'Получаю метаданные из TorrServer, подождите…';
+        out.textContent = 'Getting metadata from TorrServer, please wait…';
         Dashboard.showLoadingMsg();
         ApiClient.ajax({
           type: 'POST',
@@ -225,23 +225,23 @@
           dataType: 'json'
         }).then(function (r) {
           Dashboard.hideLoadingMsg();
-          var name = r.title || 'без названия';
+          var name = r.title || 'untitled';
           if (r.year) {
             name += ' (' + r.year + ')';
           }
-          var kind = r.type === 'series' ? 'сериал' : 'фильм';
-          var lines = ['Готово: ' + name + ' [' + kind + ']'];
+          var kind = r.type === 'series' ? 'series' : 'movie';
+          var lines = ['Done: ' + name + ' [' + kind + ']'];
           if (r.libraryPath) {
-            lines.push('Библиотека: ' + r.libraryPath);
+            lines.push('Library: ' + r.libraryPath);
           }
-          lines.push('Создано файлов: ' + r.files.length);
+          lines.push('Files created: ' + r.files.length);
           out.textContent = lines.join('\n') + '\n' + r.files.join('\n');
         }).catch(function (err) {
           Dashboard.hideLoadingMsg();
           if (err && err.json) {
-            err.json().then(function (j) { out.textContent = 'Ошибка: ' + (j.error || JSON.stringify(j)); });
+            err.json().then(function (j) { out.textContent = 'Error: ' + (j.error || JSON.stringify(j)); });
           } else {
-            out.textContent = 'Ошибка запроса';
+            out.textContent = 'Request failed';
           }
         });
         return false;

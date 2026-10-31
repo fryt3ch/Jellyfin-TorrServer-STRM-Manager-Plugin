@@ -28,7 +28,7 @@ public sealed class StrmLibraryPostScanTask : ILibraryPostScanTask
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "TorrServerStrm: не удалось проверить и починить .strm после сканирования библиотеки");
+            _logger.LogError(ex, "TorrServerStrm: failed to verify and repair .strm files after library scan");
         }
     }
 }

@@ -28,7 +28,7 @@ public sealed class StrmIndexStartupService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "TorrServerStrm: не удалось проверить и починить .strm при старте");
+            _logger.LogError(ex, "TorrServerStrm: failed to verify and repair .strm files at startup");
         }
     }
 
