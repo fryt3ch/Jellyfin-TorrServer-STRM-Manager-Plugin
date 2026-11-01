@@ -10,12 +10,9 @@
       <h3>Settings</h3>
       <form id="TsCfgForm">
         <div class="inputContainer">
-          <input is="emby-input" id="TorrServerUrl" type="text" label="TorrServer API URL (from Jellyfin)" />
-          <div class="fieldDescription">Must be reachable from the Jellyfin server (in Docker, the container name). For example http://torrserver:8090</div>
-        </div>
-        <div class="inputContainer">
-          <input is="emby-input" id="StreamBaseUrl" type="text" label="Player URL (in .strm, optional)" />
-          <div class="fieldDescription">Reachable from clients (TV, phone). Empty = API URL. For example http://192.168.1.10:8090</div>
+          <input is="emby-input" id="TorrServerUrl" type="text" label="TorrServer URL" />
+          <div class="fieldDescription">Must be reachable from the Jellyfin server (in Docker, the container name). For example http://torrserver:8090. This address is also written to .strm files.</div>
+          <div class="fieldDescription">For playback only through Jellyfin, enable "Force transcoding of remote media sources (like Live TV)" in the Jellyfin user settings. Otherwise clients must be able to reach this address directly for Direct Play.</div>
         </div>
         <div class="inputContainer"><input is="emby-input" id="Username" type="text" label="Username (if authentication is enabled)" /></div>
         <div class="inputContainer"><input is="emby-input" id="Password" type="password" label="Password" /></div>
@@ -42,7 +39,7 @@
     (function () {
       var pluginId = '7c1f3a52-9d4e-4b8a-a6f1-2e5b8c9d0f13';
       var page = document.querySelector('#TsCfgPage');
-      var cfgText = ['TorrServerUrl', 'StreamBaseUrl', 'Username', 'Password'];
+      var cfgText = ['TorrServerUrl', 'Username', 'Password'];
 
       page.addEventListener('pageshow', function () {
         Dashboard.showLoadingMsg();

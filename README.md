@@ -13,16 +13,19 @@ Copy `out/Jellyfin.Plugin.TorrServerStrm.dll` into the Jellyfin plugins folder:
 ## Usage
 1. Dashboard → Plugins → TorrServer STRM Manager → Settings: set the TorrServer URL.
 
-   There are two URLs:
-   - **TorrServer API URL (from Jellyfin)** — used by the Jellyfin server to add
-     and remove torrents. It must be reachable from the Jellyfin container/process
-     (for example, `http://torrserver:8090` in Docker).
-   - **Player URL (in .strm, optional)** — written to `.strm` files and opened by
-     clients (TV, phone, browser). It must be reachable from those devices
-     (for example, `http://192.168.1.10:8090`). If empty, the API URL is used.
-
-   If Jellyfin and the clients reach TorrServer at the same address, the second URL can be left empty.
+   The same address is used by the Jellyfin server for API calls and for streaming,
+   and it is written to `.strm` files. It must be reachable from the Jellyfin
+   container/process (for example, `http://torrserver:8090` in Docker).
    When the address changes and settings are saved, existing `.strm` files are updated automatically.
+
+   To play only through Jellyfin (clients never open the TorrServer address), enable
+   **"Force transcoding of remote media sources (like Live TV)"** for the users:
+   Dashboard → Users → user → Media playback. This makes Jellyfin fetch the stream
+   and transcode it, so clients only need access to Jellyfin. Note that this disables
+   Direct Play/Direct Stream and uses server CPU/GPU.
+
+   If that option is disabled, clients can Direct Play directly from TorrServer and
+   therefore must be able to reach the configured TorrServer URL.
 2. Open the "Import .magnet link" sidebar item (or the "Settings" button on the add page
    if you need to return to the configuration). Paste a magnet link and click "Add".
    Title, year, type, and library are filled in automatically from the magnet (`dn`). "Movie" is
@@ -54,9 +57,9 @@ The plugin does not keep a separate `library.json`. The in-memory index is built
 The index is rebuilt at Jellyfin startup and after every library scan
 (manual or scheduled). At both points the plugin:
 
-1. Fixes the address in `.strm` files when it does not match the address from settings
-   (`Player URL`, otherwise `TorrServer API URL`). Only the prefix up to `/stream/` is changed;
-   the `link`, `index`, and `play` parameters and the file name are preserved.
+1. Fixes the address in `.strm` files when it does not match the TorrServer URL from settings.
+   Only the prefix up to `/stream/` is changed; the `link`, `index`, and `play` parameters
+   and the file name are preserved.
 2. Compares torrent hashes with TorrServer and re-adds missing ones
    (`POST /torrents` with `action=list`, then `action=add` by infohash).
    TorrServer fetches the metadata itself; trackers are applied according to its Retrackers setting.
