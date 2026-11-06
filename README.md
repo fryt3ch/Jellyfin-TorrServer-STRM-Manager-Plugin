@@ -213,7 +213,7 @@ The plugin targets **.NET 8** and references **Jellyfin.Controller 10.10.0**.
 
 ### Publishing a release
 
-1. Update the `changelog` in `build.yaml`.
+1. Update the `changelog` in `src/Jellyfin.Plugin.TorrServerStrm/build.yaml`.
 2. Tag the release and push it:
 
 ```bash
