@@ -43,6 +43,12 @@ TorrServer STRM Manager is a Jellyfin plugin that imports magnet links through T
 - A running **TorrServer** instance reachable from the Jellyfin server
 - Write access to your Jellyfin library folders
 
+### 🐳 Full deployment example
+
+Need a ready-to-run Jellyfin + TorrServer setup? See the companion
+[docker-compose stack](https://github.com/fryt3ch/jellyfin-torrserver-stack),
+which also includes an optional Gluetun/WARP VPN profile for regions with strict laws.
+
 ---
 
 ## 🚀 Installation
