@@ -1,12 +1,10 @@
 # Jellyfin.Plugin.TorrServerStrm
 
 ## Build
-    dotnet build Jellyfin.Plugin.TorrServerStrm.sln
-    dotnet test Jellyfin.Plugin.TorrServerStrm.sln
-    dotnet publish Jellyfin.Plugin.TorrServerStrm.csproj -c Release -o out
+    dotnet publish -c Release
 
 ## Installation
-Copy `out/Jellyfin.Plugin.TorrServerStrm.dll` into the Jellyfin plugins folder:
+Copy `src/Jellyfin.Plugin.TorrServerStrm/bin/Release/net8.0/publish/Jellyfin.Plugin.TorrServerStrm.dll` into the Jellyfin plugins folder:
     /var/lib/jellyfin/plugins/TorrServerStrm_1.0.0.0/
 (Docker: `/config/plugins/TorrServerStrm_1.0.0.0/`), then restart Jellyfin.
 
