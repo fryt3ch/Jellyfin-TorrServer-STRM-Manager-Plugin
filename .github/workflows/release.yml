@@ -66,6 +66,7 @@ jobs:
         id: package
         shell: bash
         run: |
+          mkdir -p artifacts
           artifact="$(jprm plugin build src/Jellyfin.Plugin.TorrServerStrm \
             --output artifacts \
             --version "${{ steps.version.outputs.version }}" \
