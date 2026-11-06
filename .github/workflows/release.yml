@@ -1,0 +1,147 @@
+name: Release plugin
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Plugin version, for example 1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: plugin-release
+  cancel-in-progress: false
+
+env:
+  JPRM_VERSION: "1.1.0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      filename: ${{ steps.package.outputs.filename }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            version="${{ inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          version="${version#v}"
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then
+            echo "Invalid plugin version: $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install jprm
+        run: python -m pip install --disable-pip-version-check "jprm==${JPRM_VERSION}"
+
+      - name: Build plugin package
+        id: package
+        shell: bash
+        run: |
+          artifact="$(jprm plugin build . \
+            --output artifacts \
+            --version "${{ steps.version.outputs.version }}" \
+            --dotnet-framework net8.0 \
+            --max-cpu-count 2)"
+          filename="$(basename "$artifact")"
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
+          echo "filename=$filename" >> "$GITHUB_OUTPUT"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-package
+          path: artifacts/*.zip
+          if-no-files-found: error
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          tag="v${{ steps.version.outputs.version }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "artifacts/${{ steps.package.outputs.filename }}" --clobber
+          else
+            gh release create "$tag" \
+              "artifacts/${{ steps.package.outputs.filename }}" \
+              --title "$tag" \
+              --generate-notes
+          fi
+
+  manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: plugin-package
+          path: artifacts
+
+      - name: Install jprm
+        run: python -m pip install --disable-pip-version-check "jprm==${JPRM_VERSION}"
+
+      - name: Update manifest
+        shell: bash
+        run: |
+          version="${{ needs.build.outputs.version }}"
+          filename="${{ needs.build.outputs.filename }}"
+          plugin_url="https://github.com/${{ github.repository }}/releases/download/v${version}/${filename}"
+          if [[ ! -f manifest.json ]]; then
+            jprm repo init manifest.json
+          fi
+          jprm repo add --plugin-url "$plugin_url" manifest.json "artifacts/${filename}"
+
+      - name: Commit manifest
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          if git diff --cached --quiet; then
+            echo "manifest.json is already up to date."
+            exit 0
+          fi
+          git commit -m "chore: update plugin manifest for v${{ needs.build.outputs.version }}"
+          git pull --rebase origin main
+          git push origin HEAD:main

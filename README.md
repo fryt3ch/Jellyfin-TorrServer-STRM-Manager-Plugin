@@ -2,9 +2,10 @@
 
 **Turn magnet links into Jellyfin-ready libraries — powered by TorrServer.**
 
-[![Jellyfin 10.10+](https://img.shields.io/badge/Jellyfin-10.10%2B-00A4DC?logo=jellyfin&logoColor=white)](https://jellyfin.org)
+[![Jellyfin 10.10](https://img.shields.io/badge/Jellyfin-10.10-00A4DC?logo=jellyfin&logoColor=white)](https://jellyfin.org)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/fryt3ch/Jellyfin-TorrServerStrm-Plugin)](https://github.com/fryt3ch/Jellyfin-TorrServerStrm-Plugin/releases)
 
 TorrServer STRM Manager is a Jellyfin plugin that imports magnet links through TorrServer and writes `.strm` files into your libraries. Jellyfin treats them as regular movies and series, while TorrServer handles the torrenting and streaming behind the scenes.
 
@@ -37,7 +38,7 @@ TorrServer STRM Manager is a Jellyfin plugin that imports magnet links through T
 
 ## 📋 Requirements
 
-- **Jellyfin 10.10+**
+- **Jellyfin 10.10.x**
 - **.NET 8 SDK** (only for building from source)
 - A running **TorrServer** instance reachable from the Jellyfin server
 - Write access to your Jellyfin library folders
@@ -46,7 +47,18 @@ TorrServer STRM Manager is a Jellyfin plugin that imports magnet links through T
 
 ## 🚀 Installation
 
-### Build from source
+### From the plugin repository (recommended)
+
+1. In Jellyfin, open **Dashboard → Plugins → Repositories**.
+2. Click **+** and add a repository:
+   - **Name:** `TorrServer STRM Manager`
+   - **URL:** `https://raw.githubusercontent.com/fryt3ch/Jellyfin-TorrServerStrm-Plugin/main/manifest.json`
+3. Save the repository, then open **Catalog → General**.
+4. Install **TorrServer STRM Manager** and restart Jellyfin when prompted.
+
+The repository is updated with every release, so Jellyfin can also offer future updates automatically.
+
+### Build from source (manual)
 
 ```bash
 dotnet publish src/Jellyfin.Plugin.TorrServerStrm/Jellyfin.Plugin.TorrServerStrm.csproj -c Release
@@ -198,6 +210,18 @@ dotnet publish src/Jellyfin.Plugin.TorrServerStrm/Jellyfin.Plugin.TorrServerStrm
 ```
 
 The plugin targets **.NET 8** and references **Jellyfin.Controller 10.10.0**.
+
+### Publishing a release
+
+1. Update the `changelog` in `build.yaml`.
+2. Tag the release and push it:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The GitHub Actions release workflow builds the plugin ZIP, publishes it as a GitHub Release, and updates `manifest.json` for the custom repository.
 
 ---
 

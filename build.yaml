@@ -1,0 +1,18 @@
+name: "TorrServer STRM Manager"
+guid: "7c1f3a52-9d4e-4b8a-a6f1-2e5b8c9d0f13"
+version: "1.0.0.0"
+targetAbi: "10.10.0.0"
+framework: "net8.0"
+overview: "Import magnet links into Jellyfin as .strm files via TorrServer."
+description: >
+  Add magnet links through TorrServer and generate Jellyfin-compatible .strm
+  files for movies and series. Titles, years, types, and libraries are detected
+  automatically. The plugin repairs .strm addresses, re-adds missing torrents,
+  and removes torrents from TorrServer when their media is deleted.
+category: "General"
+owner: "fryt3ch"
+artifacts:
+  - "Jellyfin.Plugin.TorrServerStrm.dll"
+changelog: >
+  Initial release with magnet import, automatic metadata detection, series
+  layout, .strm repair, tracked files, and automatic TorrServer cleanup.
