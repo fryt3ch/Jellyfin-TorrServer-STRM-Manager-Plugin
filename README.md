@@ -5,7 +5,7 @@
 [![Jellyfin 10.10](https://img.shields.io/badge/Jellyfin-10.10-00A4DC?logo=jellyfin&logoColor=white)](https://jellyfin.org)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/fryt3ch/Jellyfin-TorrServerStrm-Plugin)](https://github.com/fryt3ch/Jellyfin-TorrServerStrm-Plugin/releases)
+[![Latest release](https://img.shields.io/github/v/release/fryt3ch/Jellyfin-TorrServer-STRM-Manager-Plugin)](https://github.com/fryt3ch/Jellyfin-TorrServer-STRM-Manager-Plugin/releases)
 
 TorrServer STRM Manager is a Jellyfin plugin that imports magnet links through TorrServer and writes `.strm` files into your libraries. Jellyfin treats them as regular movies and series, while TorrServer handles the torrenting and streaming behind the scenes.
 
@@ -52,7 +52,7 @@ TorrServer STRM Manager is a Jellyfin plugin that imports magnet links through T
 1. In Jellyfin, open **Dashboard → Plugins → Repositories**.
 2. Click **+** and add a repository:
    - **Name:** `TorrServer STRM Manager`
-   - **URL:** `https://raw.githubusercontent.com/fryt3ch/Jellyfin-TorrServerStrm-Plugin/main/manifest.json`
+   - **URL:** `https://raw.githubusercontent.com/fryt3ch/Jellyfin-TorrServer-STRM-Manager-Plugin/main/manifest.json`
 3. Save the repository, then open **Catalog → General**.
 4. Install **TorrServer STRM Manager** and restart Jellyfin when prompted.
 
