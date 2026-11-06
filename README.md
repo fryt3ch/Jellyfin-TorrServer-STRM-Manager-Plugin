@@ -1,5 +1,10 @@
 # Jellyfin.Plugin.TorrServerStrm
 
+<img width="1321" height="996" alt="image" src="https://github.com/user-attachments/assets/06967ee7-a4a7-4420-9856-e6bbdd89480a" />
+<img width="1201" height="990" alt="image" src="https://github.com/user-attachments/assets/b5555fe6-5685-40d2-9f52-587579c9a8e2" />
+
+
+
 ## Build
     dotnet publish -c Release
 
