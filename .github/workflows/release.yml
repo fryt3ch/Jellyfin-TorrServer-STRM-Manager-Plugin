@@ -128,10 +128,11 @@ jobs:
           version="${{ needs.build.outputs.version }}"
           filename="${{ needs.build.outputs.filename }}"
           plugin_url="https://github.com/${{ github.repository }}/releases/download/v${version}/${filename}"
-          if [[ ! -f manifest.json ]]; then
-            jprm repo init manifest.json
+          manifest_path="$PWD/manifest.json"
+          if [[ ! -f "$manifest_path" ]]; then
+            jprm repo init "$manifest_path"
           fi
-          jprm repo add --plugin-url "$plugin_url" manifest.json "artifacts/${filename}"
+          jprm repo add --plugin-url "$plugin_url" "$manifest_path" "artifacts/${filename}"
 
       - name: Commit manifest
         shell: bash
