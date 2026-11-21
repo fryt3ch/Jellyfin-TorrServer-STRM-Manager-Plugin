@@ -158,6 +158,9 @@
           return;
         }
 
+        addTitle.dataset.manual = '0';
+        addYear.dataset.manual = '0';
+
         parseTimer = setTimeout(function () {
           if (magnet.value.trim() !== value) {
             return;
