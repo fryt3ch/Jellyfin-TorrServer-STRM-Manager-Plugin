@@ -32,6 +32,14 @@ public static class TitlePatterns
         @"[\(\[]\s*((?:19|20)\d{2})\s*[\)\]]",
         RegexOptions.Compiled);
 
+    public static readonly Regex BracketedYearStart = new(
+        @"[\(\[]\s*((?:19|20)\d{2})(?!\d)",
+        RegexOptions.Compiled);
+
+    public static readonly Regex BilingualParenthetical = new(
+        @"\([^()]*[/][^()]*\)",
+        RegexOptions.Compiled);
+
     public static readonly Regex LooseYear = new(
         @"(?<!\d)((?:19|20)\d{2})(?!\d)",
         RegexOptions.Compiled);

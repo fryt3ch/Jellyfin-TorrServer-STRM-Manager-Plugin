@@ -105,6 +105,16 @@ public sealed class TitleParser : ITitleParser
             }
         }
 
+        var bracketed = TitlePatterns.BracketedYearStart.Match(text);
+        if (bracketed.Success)
+        {
+            var value = int.Parse(bracketed.Groups[1].Value);
+            if (value >= 1900 && value <= maxYear)
+            {
+                return value;
+            }
+        }
+
         var loose = TitlePatterns.LooseYear.Matches(text)
             .Cast<Match>()
             .Select(match => int.Parse(match.Groups[1].Value))
@@ -124,6 +134,14 @@ public sealed class TitleParser : ITitleParser
     private static string CleanTitle(string raw, MediaKind kind, int? year)
     {
         var text = TitlePatterns.Domain.Replace(raw.Trim(), " ");
+
+        var yearBlock = TitlePatterns.BracketedYearStart.Match(text);
+        if (yearBlock.Success && text[..yearBlock.Index].Trim().Length > 0)
+        {
+            text = text[..yearBlock.Index];
+        }
+
+        text = TitlePatterns.BilingualParenthetical.Replace(text, " ");
         text = TitlePatterns.Brackets.Replace(text, " ");
         text = TitlePatterns.BracketYear.Replace(text, " ");
 
